@@ -26,7 +26,11 @@ import {
   Layers,
   Search,
   Sun,
-  Moon
+  Moon,
+  CreditCard,
+  Wallet,
+  Shield,
+  Clock
 } from 'lucide-react';
 import { motion, AnimatePresence, useScroll, useSpring } from 'motion/react';
 import {
@@ -72,7 +76,16 @@ interface AcademyArticle {
   category: string;
   readTime: string;
   description: string;
-  image?: string;
+  content: string;
+  image: string;
+}
+
+interface Plan {
+  id: 'free' | 'pro' | 'annual';
+  name: string;
+  price: string;
+  period: string;
+  features: string[];
 }
 
 // --- Components ---
@@ -119,7 +132,7 @@ const StatItem = ({ value, label, subtext, highlight = 'indigo' }: { value: stri
   );
 };
 
-const AnalysisCardComp = ({ data }: { data: AnalysisCard, key?: React.Key }) => {
+const AnalysisCardComp = ({ data, onPremiumClick }: { data: AnalysisCard, onPremiumClick: () => void, key?: React.Key }) => {
   const edge = data.ourProb - data.marketProb;
   const isPositiveEdge = edge > 0;
 
@@ -181,11 +194,14 @@ const AnalysisCardComp = ({ data }: { data: AnalysisCard, key?: React.Key }) => 
       </div>
       
       <div className="flex justify-between text-[10px] text-text-tertiary pt-4 border-t border-border-subtle/30">
-        <span>Publicado {data.publishedAt}</span>
+        <span>Publicado {new Date(data.publishedAt).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}</span>
         <span className="font-mono">Liq. {data.liquidity}</span>
       </div>
 
-      <button className="w-full mt-6 flex items-center justify-center gap-1 text-brand-indigo font-bold text-[11px] uppercase tracking-wider hover:underline transition-all">
+      <button 
+        onClick={onPremiumClick}
+        className="w-full mt-6 flex items-center justify-center gap-1 text-brand-indigo font-bold text-[11px] uppercase tracking-wider hover:underline transition-all"
+      >
         Ver análisis completo <ChevronRight size={14} />
       </button>
     </motion.div>
@@ -227,7 +243,7 @@ const FAQItem = ({ question, answer }: { question: string, answer: string, key?:
   );
 };
 
-const AcademyCard = ({ article }: { article: AcademyArticle, key?: React.Key }) => {
+const AcademyCard = ({ article, onRead }: { article: AcademyArticle, onRead: (article: AcademyArticle) => void, key?: React.Key }) => {
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
@@ -236,10 +252,14 @@ const AcademyCard = ({ article }: { article: AcademyArticle, key?: React.Key }) 
       whileHover={{ y: -4 }}
       className="bg-bg-card border border-border-subtle rounded-xl overflow-hidden group hover:border-brand-indigo/40 transition-all"
     >
-      <div className="h-40 bg-gradient-to-br from-indigo-500/10 to-emerald-500/10 relative overflow-hidden">
-        <div className="absolute inset-0 flex items-center justify-center opacity-20 group-hover:scale-110 transition-transform duration-500">
-          <Layers size={80} className="text-brand-indigo" />
-        </div>
+      <div className="h-48 bg-bg-base relative overflow-hidden">
+        <img 
+          src={article.image} 
+          alt={article.title} 
+          referrerPolicy="no-referrer"
+          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-bg-card via-transparent to-transparent opacity-60" />
         <div className="absolute top-4 left-4">
           <span className="bg-bg-base/80 backdrop-blur-md text-[10px] text-text-secondary font-bold px-2 py-1 rounded uppercase tracking-widest border border-border-subtle">
             {article.category}
@@ -260,7 +280,10 @@ const AcademyCard = ({ article }: { article: AcademyArticle, key?: React.Key }) 
         <p className="text-text-secondary text-sm mb-6 line-clamp-2 leading-relaxed">
           {article.description}
         </p>
-        <button className="flex items-center gap-2 text-text-primary text-xs font-bold uppercase tracking-widest hover:gap-3 transition-all">
+        <button 
+          onClick={() => onRead(article)}
+          className="flex items-center gap-2 text-text-primary text-xs font-bold uppercase tracking-widest hover:gap-3 transition-all"
+        >
           Leer artículo <ArrowRight size={14} className="text-brand-indigo" />
         </button>
       </div>
@@ -268,13 +291,265 @@ const AcademyCard = ({ article }: { article: AcademyArticle, key?: React.Key }) 
   );
 };
 
+const ArticlePage = ({ article, onBack }: { article: AcademyArticle, onBack: () => void }) => {
+  return (
+    <div className="min-h-screen pt-12 pb-24 bg-bg-base">
+      <div className="max-w-4xl mx-auto px-6">
+        <button 
+          onClick={onBack}
+          className="flex items-center gap-2 text-text-tertiary hover:text-text-primary mb-12 transition-colors font-medium"
+        >
+          <ArrowRight size={16} className="rotate-180" /> Volver a la Academia
+        </button>
+
+        <header className="mb-12">
+          <div className="flex items-center gap-3 mb-6">
+            <span className="bg-brand-indigo/10 text-brand-indigo text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest">
+              {article.category}
+            </span>
+            <span className="text-text-tertiary text-xs flex items-center gap-1">
+              <Clock size={12} /> {article.readTime} de lectura
+            </span>
+          </div>
+          <h1 className="text-4xl md:text-5xl font-bold mb-8 leading-tight">{article.title}</h1>
+          
+          <div className="aspect-[21/9] rounded-2xl overflow-hidden mb-12">
+            <img 
+              src={article.image} 
+              alt={article.title} 
+              referrerPolicy="no-referrer"
+              className="w-full h-full object-cover"
+            />
+          </div>
+        </header>
+
+        <article className="prose prose-invert max-w-none">
+          <div className="space-y-6 text-text-secondary leading-relaxed text-lg">
+            {article.content.split('\n\n').map((paragraph, i) => (
+              <p key={i}>{paragraph}</p>
+            ))}
+          </div>
+        </article>
+
+        <div className="mt-20 pt-12 border-t border-border-subtle flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-brand-indigo flex items-center justify-center text-white font-bold">ED</div>
+            <div>
+              <p className="text-text-primary font-bold">Equipo Edgio</p>
+              <p className="text-text-tertiary text-xs">Research & Intelligence</p>
+            </div>
+          </div>
+          <div className="flex gap-4">
+            <button className="p-2 hover:bg-white/5 rounded-full text-text-tertiary transition-colors"><Mail size={20} /></button>
+            <button className="p-2 hover:bg-white/5 rounded-full text-text-tertiary transition-colors"><ExternalLink size={20} /></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const CheckoutPage = ({ plan, onBack }: { plan: Plan, onBack: () => void }) => {
+  const [step, setStep] = useState(1);
+  const [formData, setFormData] = useState({
+    email: '',
+    cardName: '',
+    cardNumber: '',
+    expiry: '',
+    cvc: ''
+  });
+
+  const handleNext = (e: React.FormEvent) => {
+    e.preventDefault();
+    setStep(2);
+  };
+
+  return (
+    <div className="min-h-screen pt-12 pb-24 px-6 max-w-5xl mx-auto">
+      <button 
+        onClick={onBack}
+        className="flex items-center gap-2 text-text-tertiary hover:text-text-primary mb-12 transition-colors font-medium"
+      >
+        <ArrowRight size={16} className="rotate-180" /> Volver a planes
+      </button>
+
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
+        {/* Checkout Form */}
+        <div className="lg:col-span-3">
+          <div className="flex items-center gap-4 mb-10">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border-2 transition-all ${step >= 1 ? 'bg-brand-indigo border-brand-indigo text-white' : 'border-border-subtle text-text-tertiary'}`}>1</div>
+            <div className="h-[2px] w-12 bg-border-subtle" />
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border-2 transition-all ${step >= 2 ? 'bg-brand-indigo border-brand-indigo text-white' : 'border-border-subtle text-text-tertiary'}`}>2</div>
+          </div>
+
+          <AnimatePresence mode="wait">
+            {step === 1 ? (
+              <motion.div 
+                key="step1"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+              >
+                <h2 className="text-3xl font-semibold mb-2">Información de cuenta</h2>
+                <p className="text-text-secondary mb-8">Introduce tus datos para empezar tu suscripción.</p>
+
+                <form onSubmit={handleNext} className="space-y-6">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-widest text-text-tertiary mb-2">Email de acceso</label>
+                    <input 
+                      required
+                      type="email"
+                      placeholder="ejemplo@email.com"
+                      className="w-full bg-bg-card border border-border-subtle rounded-xl px-5 py-3.5 outline-none focus:border-brand-indigo transition-all"
+                      value={formData.email}
+                      onChange={e => setFormData({...formData, email: e.target.value})}
+                    />
+                  </div>
+                  <button 
+                    type="submit"
+                    className="w-full bg-brand-indigo hover:brightness-110 text-white font-bold py-4 rounded-xl shadow-lg shadow-brand-indigo/20 transition-all flex items-center justify-center gap-2"
+                  >
+                    Siguiente paso <ChevronRight size={18} />
+                  </button>
+                </form>
+              </motion.div>
+            ) : (
+              <motion.div 
+                key="step2"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+              >
+                <h2 className="text-3xl font-semibold mb-2">Método de pago</h2>
+                <p className="text-text-secondary mb-8">Pago 100% seguro procesado por Stripe.</p>
+
+                <div className="space-y-6">
+                  <div className="bg-brand-indigo/5 border border-brand-indigo/20 rounded-xl p-4 flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-3">
+                      <ShieldCheck className="text-brand-indigo" size={20} />
+                      <span className="text-sm font-medium">Encriptación SSL de 256 bits</span>
+                    </div>
+                    <div className="flex gap-2">
+                       <div className="w-8 h-5 bg-white/10 rounded" />
+                       <div className="w-8 h-5 bg-white/10 rounded" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-widest text-text-tertiary mb-2">Nombre en la tarjeta</label>
+                      <input 
+                        type="text"
+                        className="w-full bg-bg-card border border-border-subtle rounded-xl px-5 py-3.5 outline-none focus:border-brand-indigo transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-widest text-text-tertiary mb-2">Número de tarjeta</label>
+                      <div className="relative">
+                        <input 
+                          type="text"
+                          placeholder="0000 0000 0000 0000"
+                          className="w-full bg-bg-card border border-border-subtle rounded-xl px-5 py-3.5 outline-none focus:border-brand-indigo transition-all pr-12"
+                        />
+                        <CreditCard className="absolute right-4 top-1/2 -translate-y-1/2 text-text-tertiary" size={20} />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-widest text-text-tertiary mb-2">Expiración</label>
+                        <input 
+                          type="text"
+                          placeholder="MM/YY"
+                          className="w-full bg-bg-card border border-border-subtle rounded-xl px-5 py-3.5 outline-none focus:border-brand-indigo transition-all"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold uppercase tracking-widest text-text-tertiary mb-2">CVC</label>
+                        <input 
+                          type="text"
+                          placeholder="123"
+                          className="w-full bg-bg-card border border-border-subtle rounded-xl px-5 py-3.5 outline-none focus:border-brand-indigo transition-all"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <button className="w-full bg-brand-indigo hover:brightness-110 text-white font-bold py-4 rounded-xl shadow-lg shadow-brand-indigo/20 transition-all flex items-center justify-center gap-2 mt-8">
+                    Finalizar pago: {plan.price}{plan.period && <span className="text-white/60 font-normal">/{plan.period}</span>}
+                  </button>
+                  <p className="text-center text-[11px] text-text-tertiary mt-4">
+                    Al confirmar, aceptas nuestros términos de servicio y política de privacidad.
+                  </p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Plan Summary */}
+        <div className="lg:col-span-2">
+          <div className="bg-bg-card border border-border-subtle rounded-2xl p-8 sticky top-28">
+            <h3 className="text-lg font-bold mb-6 pb-6 border-b border-border-subtle">Resumen del pedido</h3>
+            
+            <div className="space-y-6 mb-8">
+              <div className="flex justify-between items-start">
+                <div>
+                  <span className="font-bold text-text-primary block">Plan {plan.name}</span>
+                  <span className="text-text-tertiary text-xs uppercase tracking-widest">Acceso Completo</span>
+                </div>
+                <span className="font-mono font-bold text-lg">{plan.price}</span>
+              </div>
+
+              <div className="space-y-3">
+                {plan.features.slice(0, 5).map((f, i) => (
+                  <div key={i} className="flex gap-2 text-xs text-text-secondary">
+                    <CheckCircle2 size={14} className="text-brand-emerald shrink-0" />
+                    <span>{f}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-4 pt-6 border-t border-border-subtle">
+              <div className="flex justify-between text-sm">
+                <span className="text-text-tertiary">Subtotal</span>
+                <span className="text-text-primary">{plan.price}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-text-tertiary">Impuestos</span>
+                <span className="text-text-primary">0,00€</span>
+              </div>
+              <div className="flex justify-between text-lg font-bold pt-4">
+                <span>Total</span>
+                <span className="text-brand-indigo">{plan.price}</span>
+              </div>
+            </div>
+
+            <div className="mt-8 space-y-4">
+              <div className="flex items-center gap-3 text-xs text-text-tertiary bg-white/5 p-4 rounded-xl">
+                <Clock size={16} />
+                <span>Activación instantánea tras el pago</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState('Todos');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [email, setEmail] = useState('');
   const [emailStatus, setEmailStatus] = useState<'idle' | 'invalid' | 'submitting' | 'success'>('idle');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [toast, setToast] = useState<string | null>(null);
+  const [view, setView] = useState<'landing' | 'checkout' | 'article'>('landing');
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+  const [selectedArticle, setSelectedArticle] = useState<AcademyArticle | null>(null);
   
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, {
@@ -291,7 +566,7 @@ export default function App() {
       marketProb: 42,
       ourProb: 53,
       conviction: 8,
-      publishedAt: '20 abr',
+      publishedAt: '2024-04-20',
       liquidity: '$124.5k',
       daysRemaining: 14
     },
@@ -302,7 +577,7 @@ export default function App() {
       marketProb: 61,
       ourProb: 65,
       conviction: 6,
-      publishedAt: '18 abr',
+      publishedAt: '2024-04-18',
       liquidity: '$2.1M',
       daysRemaining: 42
     },
@@ -313,7 +588,7 @@ export default function App() {
       marketProb: 34,
       ourProb: 22,
       conviction: 7,
-      publishedAt: '21 abr',
+      publishedAt: '2024-04-21',
       liquidity: '$890k',
       daysRemaining: 68
     }
@@ -336,35 +611,52 @@ export default function App() {
       title: 'Bayesianismo para Humanos: Cómo actualizar tus creencias',
       category: 'Fundamentos',
       readTime: '5 min',
-      description: 'Aprende a procesar nueva información sin caer en el sesgo de confirmación usando el Teorema de Bayes.'
+      description: 'Aprende a procesar nueva información sin caer en el sesgo de confirmación usando el Teorema de Bayes.',
+      image: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?q=80&w=1200&auto=format&fit=crop',
+      content: `El cerebro humano no está naturalmente diseñado para la estadística. Tendemos a sobrevalorar la información reciente y a ignorar la probabilidad base. Aquí es donde entra Thomas Bayes.\n\nLa inferencia bayesiana es una herramienta para actualizar la probabilidad de una hipótesis a medida que hay más evidencia o información disponible. En lugar de ver las probabilidades como frecuencias fijas, el bayesiano las ve como "niveles de creencia".\n\n¿Cómo aplicarlo en mercados de predicción? Empieza con un "prior" (probabilidad base). Si ocurre un evento nuevo, no cambies tu opinión al 100%. Pregúntate: ¿Cuál es la probabilidad de que este evento ocurra si mi hipótesis inicial es cierta vs. si es falsa? Esa pequeña diferencia es la que te permite ajustar tu estimación de forma matemática y fría.`
     },
     {
       id: '2',
       title: 'Superforecasting 101: Hábitos de los mejores predictores',
       category: 'Estrategia',
       readTime: '8 min',
-      description: 'Philip Tetlock identificó qué separa a los expertos de los simples opinólogos. Aquí están sus leyes.'
+      description: 'Philip Tetlock identificó qué separa a los expertos de los simples opinólogos. Aquí están sus leyes.',
+      image: 'https://images.unsplash.com/photo-1543286386-2e659306cd6c?q=80&w=1200&auto=format&fit=crop',
+      content: `En su estudio de décadas, Philip Tetlock descubrió que hay un grupo de personas que superan consistentemente a los algoritmos y a los expertos de inteligencia. No son genios, tienen procesos.\n\nEl hábito número uno es la descomposición: romper problemas grandes en preguntas Fermi más pequeñas. ¿Ganará el candidato X? Se convierte en: ¿Cuál es la aprobación histórica con este desempleo? ¿Qué estados son clave?\n\nSegundo hábito: la actualización granular. Los superpredictores ajustan sus probabilidades en incrementos pequeños (del 45% al 47%) en lugar de saltos bruscos. Están abiertos a "estar menos equivocados" cada día.`
     },
     {
       id: '3',
       title: 'Criterio de Kelly: Cómo dimensionar tus posiciones',
       category: 'Banking',
       readTime: '6 min',
-      description: 'La gestión monetaria es tan importante como la predicción. Maximiza tu crecimiento con esta fórmula.'
+      description: 'La gestión monetaria es tan importante como la predicción. Maximiza tu crecimiento con esta fórmula.',
+      image: 'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?q=80&w=1200&auto=format&fit=crop',
+      content: `Puedes tener la razón 9 de cada 10 veces y aún así ir a la quiebra si no sabes gestionar tu capital. El Criterio de Kelly es la fórmula matemática para el tamaño óptimo de las posiciones.\n\nLa fórmula básica es: f* = (bp - q) / b. Donde f* es la fracción de tu capital, p es la probabilidad de éxito, b son las cuotas y q es la probabilidad de fracaso.\n\nEn Edgio, usamos el "Half-Kelly". Es una versión más conservadora que reduce la volatilidad de tu cuenta pero mantiene una ventaja matemática a largo plazo. Nunca pongas más del 5% de tu capital en una sola pregunta, por muy seguro que estés.`
     },
     {
       id: '4',
       title: 'Diferenciando Ruido e Información en Polymarket',
       category: 'Análisis',
       readTime: '10 min',
-      description: 'Por qué la volatilidad de precios no siempre significa cambio de tendencia en las probabilidades reales.'
+      description: 'Por qué la volatilidad de precios no siempre significa cambio de tendencia en las probabilidades reales.',
+      image: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=1200&auto=format&fit=crop',
+      content: `Los mercados de predicción son volátiles. Un tweet, un rumor o una orden de compra grande pueden cambiar el precio en segundos. Pero, ¿cambia eso la realidad del evento?\n\nEl ruido surge de traders emocionales o de "fat fingers". La información real surge de datos verificables: encuestas, informes financieros o resoluciones judiciales.\n\nAprender a no reaccionar al ruido es la diferencia entre un trader de retail y un analista institucional. Si el precio cae al 30% pero tus modelos siguen dando un 60%, no es momento de dudar, es momento de comprar el descuento.`
     }
   ];
 
   const filteredCards = useMemo(() => {
-    if (activeFilter === 'Todos') return analysisCards;
-    return analysisCards.filter(card => card.category === activeFilter);
-  }, [activeFilter]);
+    return analysisCards.filter(card => {
+      const matchesCategory = activeFilter === 'Todos' || card.category === activeFilter;
+      
+      const cardDate = new Date(card.publishedAt);
+      const start = startDate ? new Date(startDate) : null;
+      const end = endDate ? new Date(endDate) : null;
+      
+      const matchesDate = (!start || cardDate >= start) && (!end || cardDate <= end);
+      
+      return matchesCategory && matchesDate;
+    });
+  }, [activeFilter, startDate, endDate, analysisCards]);
 
   const calibrateData: any = {
     datasets: [
@@ -430,16 +722,16 @@ export default function App() {
     return re.test(e);
   };
 
-  const handleSubscribe = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validateEmail(email)) {
-      setEmailStatus('invalid');
-      return;
-    }
-    setEmailStatus('submitting');
-    setTimeout(() => {
-      setEmailStatus('success');
-    }, 1000);
+  const handleSubscribePlan = (plan: Plan) => {
+    setSelectedPlan(plan);
+    setView('checkout');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleReadArticle = (article: AcademyArticle) => {
+    setSelectedArticle(article);
+    setView('article');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const toggleTheme = () => {
@@ -539,7 +831,13 @@ export default function App() {
               Acceder
             </button>
             <button 
-              onClick={() => document.getElementById('suscripcion')?.scrollIntoView()}
+              onClick={() => {
+                if (view !== 'landing') {
+                  setView('landing');
+                } else {
+                  document.getElementById('suscripcion')?.scrollIntoView();
+                }
+              }}
               className="bg-brand-indigo hover:brightness-110 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-all shadow-[0_4px_12px_rgba(99,102,241,0.2)]"
             >
               Suscribirse
@@ -596,8 +894,16 @@ export default function App() {
       </AnimatePresence>
 
       <main>
-        {/* Section 1: Hero */}
-        <section id="inicio" className="relative pt-20 pb-32 md:pt-32 md:pb-48 px-6 grid-pattern overflow-hidden">
+        <AnimatePresence mode="wait">
+          {view === 'landing' ? (
+            <motion.div
+              key="landing"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              {/* Section 1: Hero */}
+              <section id="inicio" className="relative pt-20 pb-32 md:pt-32 md:pb-48 px-6 grid-pattern overflow-hidden">
           <div className="max-w-4xl mx-auto text-center relative z-10">
       <div className="bg-brand-indigo/5 border border-brand-indigo/20 rounded-2xl p-6 md:p-8 mb-12">
         <div className="inline-flex items-center gap-2 px-2 py-1 bg-brand-indigo/10 border border-brand-indigo/30 rounded-full text-brand-indigo text-[10px] font-bold uppercase tracking-wider mb-6">
@@ -610,10 +916,16 @@ export default function App() {
           Análisis cuantitativo de mercados sin hype. Sistema basado en superforecasting e inteligencia bayesiana para identificar dónde el mercado está equivocado.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <button className="w-full sm:w-auto bg-brand-indigo hover:brightness-110 text-white font-semibold px-8 py-4 rounded-xl transition-all shadow-lg shadow-brand-indigo/20 text-lg">
+          <button 
+            onClick={() => document.getElementById('analisis')?.scrollIntoView({ behavior: 'smooth' })}
+            className="w-full sm:w-auto bg-brand-indigo hover:brightness-110 text-white font-semibold px-8 py-4 rounded-xl transition-all shadow-lg shadow-brand-indigo/20 text-lg"
+          >
             Ver análisis activos
           </button>
-          <button className="w-full sm:w-auto border border-border-subtle hover:bg-white/5 font-semibold px-8 py-4 rounded-xl transition-all text-lg">
+          <button 
+            onClick={() => document.getElementById('metodologia')?.scrollIntoView({ behavior: 'smooth' })}
+            className="w-full sm:w-auto border border-border-subtle hover:bg-white/5 font-semibold px-8 py-4 rounded-xl transition-all text-lg"
+          >
             ¿Cómo funciona?
           </button>
         </div>
@@ -692,7 +1004,7 @@ export default function App() {
               </div>
             </div>
             <p className="mt-16 text-text-tertiary text-[11px] font-medium uppercase tracking-widest animate-on-scroll">
-              Actualizado cada domingo. <button className="text-brand-indigo hover:underline">Metodología de cálculo documentada →</button>
+              Actualizado cada domingo. <button onClick={() => document.getElementById('metodologia')?.scrollIntoView({ behavior: 'smooth' })} className="text-brand-indigo hover:underline">Metodología de cálculo documentada →</button>
             </p>
           </div>
         </section>
@@ -710,33 +1022,75 @@ export default function App() {
               </p>
             </div>
             
-            <div className="flex flex-wrap gap-2">
-              {['Todos', 'Política', 'Economía', 'Crypto', 'Deportes'].map(filter => (
-                <button
-                  key={filter}
-                  onClick={() => setActiveFilter(filter)}
-                  className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                    activeFilter === filter 
-                      ? 'bg-brand-indigo text-white' 
-                      : 'bg-bg-card border border-border-subtle text-text-secondary hover:border-text-tertiary'
-                  }`}
-                >
-                  {filter}
-                </button>
-              ))}
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-wrap gap-2">
+                {['Todos', 'Política', 'Economía', 'Crypto', 'Deportes'].map(filter => (
+                  <button
+                    key={filter}
+                    onClick={() => setActiveFilter(filter)}
+                    className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                      activeFilter === filter 
+                        ? 'bg-brand-indigo text-white' 
+                        : 'bg-bg-card border border-border-subtle text-text-secondary hover:border-text-tertiary'
+                    }`}
+                  >
+                    {filter}
+                  </button>
+                ))}
+              </div>
+              
+              <div className="flex items-center gap-3 bg-bg-card border border-border-subtle p-2 rounded-xl self-start">
+                <Calendar size={14} className="text-text-tertiary ml-2" />
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="date" 
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="bg-transparent text-xs text-text-secondary outline-none focus:text-brand-indigo transition-colors"
+                  />
+                  <span className="text-text-tertiary text-[10px]">a</span>
+                  <input 
+                    type="date" 
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="bg-transparent text-xs text-text-secondary outline-none focus:text-brand-indigo transition-colors"
+                  />
+                </div>
+                {(startDate || endDate) && (
+                  <button 
+                    onClick={() => { setStartDate(''); setEndDate(''); }}
+                    className="p-1 hover:bg-white/10 rounded-full text-text-tertiary transition-colors"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             <AnimatePresence mode="popLayout">
               {filteredCards.map(card => (
-                <AnalysisCardComp key={card.id} data={card} />
+                <AnalysisCardComp 
+                  key={card.id} 
+                  data={card} 
+                  onPremiumClick={() => handleSubscribePlan({ 
+                    id: 'pro', 
+                    name: 'Analista', 
+                    price: '19€', 
+                    period: 'mes', 
+                    features: ['Grupo Telegram privado exclusivo', '4-5 análisis semanales completos', 'Intervalos de confianza detallados', 'Alertas de movimientos anómalos', 'Prompts de análisis avanzado', 'Track record con métricas en vivo', 'Sesión de calibración mensual', 'Soporte directo prioritario'] 
+                  })}
+                />
               ))}
             </AnimatePresence>
           </div>
 
           <div className="mt-16 text-center animate-on-scroll">
-            <button className="border border-border-subtle hover:bg-white/5 font-semibold px-8 py-3 rounded-xl transition-all">
+            <button 
+              onClick={() => document.getElementById('suscripcion')?.scrollIntoView({ behavior: 'smooth' })}
+              className="border border-border-subtle hover:bg-white/5 font-semibold px-8 py-3 rounded-xl transition-all"
+            >
               Ver todos los análisis →
             </button>
           </div>
@@ -918,14 +1272,17 @@ export default function App() {
                   Artículos educativos para dominar el arte del forecasting y la gestión sistemática de ineficiencias de mercado.
                 </p>
               </div>
-              <button className="text-brand-indigo font-bold text-sm hover:underline transition-all">
+              <button 
+                onClick={() => document.getElementById('academia')?.scrollIntoView({ behavior: 'smooth' })}
+                className="text-brand-indigo font-bold text-sm hover:underline transition-all"
+              >
                 Explorar todos los cursos →
               </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-on-scroll">
               {academyArticles.map(article => (
-                <AcademyCard key={article.id} article={article} />
+                <AcademyCard key={article.id} article={article} onRead={handleReadArticle} />
               ))}
             </div>
           </div>
@@ -1058,7 +1415,16 @@ export default function App() {
                     </div>
                   ))}
                 </div>
-                <button className="w-full py-3 border border-border-subtle rounded-xl font-semibold hover:bg-white/5 transition-colors">
+                <button 
+                  onClick={() => handleSubscribePlan({ 
+                    id: 'free', 
+                    name: 'Lector', 
+                    price: 'Gratis', 
+                    period: '', 
+                    features: ['Canal Telegram público', '1 análisis semanal gratuito', 'Resumen semanal de mercados', 'Metodología base pública', 'Track record histórico público'] 
+                  })}
+                  className="w-full py-3 border border-border-subtle rounded-xl font-semibold hover:bg-white/5 transition-colors"
+                >
                   Empezar gratis
                 </button>
               </div>
@@ -1096,7 +1462,16 @@ export default function App() {
                     </div>
                   ))}
                 </div>
-                <button className="w-full py-4 bg-brand-indigo text-white rounded-xl font-bold hover:brightness-110 shadow-lg shadow-brand-indigo/20 transition-all">
+                <button 
+                  onClick={() => handleSubscribePlan({ 
+                    id: 'pro', 
+                    name: 'Analista', 
+                    price: '19€', 
+                    period: 'mes', 
+                    features: ['Grupo Telegram privado exclusivo', '4-5 análisis semanales completos', 'Intervalos de confianza detallados', 'Alertas de movimientos anómalos', 'Prompts de análisis avanzado', 'Track record con métricas en vivo', 'Sesión de calibración mensual', 'Soporte directo prioritario'] 
+                  })}
+                  className="w-full py-4 bg-brand-indigo text-white rounded-xl font-bold hover:brightness-110 shadow-lg shadow-brand-indigo/20 transition-all"
+                >
                   Suscribirse ahora →
                 </button>
               </div>
@@ -1127,7 +1502,16 @@ export default function App() {
                     </div>
                   ))}
                 </div>
-                <button className="w-full py-3 border border-brand-emerald text-brand-emerald rounded-xl font-semibold hover:bg-brand-emerald/5 transition-colors">
+                <button 
+                  onClick={() => handleSubscribePlan({ 
+                    id: 'annual', 
+                    name: 'Sistema', 
+                    price: '159€', 
+                    period: 'año', 
+                    features: ['Curso de metodología completo (QA)', 'Acceso al historial de 24 meses', 'Prioridad en nuevas funciones', 'Exportación de datos premium', 'Consultoría trimestral personalizada'] 
+                  })}
+                  className="w-full py-3 border border-brand-emerald text-brand-emerald rounded-xl font-semibold hover:bg-brand-emerald/5 transition-colors"
+                >
                   Acceso anual →
                 </button>
               </div>
@@ -1158,54 +1542,24 @@ export default function App() {
               Cada lunes, un análisis completo de un mercado activo. Descubre el edge antes que nadie. Sin spam.
             </p>
             
-            <form onSubmit={handleSubscribe} className="max-w-md mx-auto relative">
+            <form onSubmit={(e) => e.preventDefault()} className="max-w-md mx-auto relative">
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="relative flex-grow">
                   <input
                     type="email"
                     placeholder="tu@email.com"
                     value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value);
-                      if (emailStatus === 'invalid') setEmailStatus('idle');
-                    }}
-                    className={`w-full bg-bg-base border ${
-                      emailStatus === 'invalid' ? 'border-brand-danger' : 
-                      emailStatus === 'success' ? 'border-brand-emerald' : 
-                      'border-border-subtle focus:border-brand-indigo'
-                    } rounded-xl px-5 py-3.5 outline-none transition-all placeholder:text-text-tertiary text-text-primary`}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-bg-base border border-border-subtle rounded-xl px-5 py-3.5 outline-none focus:border-brand-indigo transition-all placeholder:text-text-tertiary text-text-primary"
                   />
-                  {emailStatus === 'invalid' && (
-                    <span className="absolute -bottom-6 left-0 text-[10px] text-brand-danger font-bold uppercase tracking-tight">Email no válido</span>
-                  )}
                 </div>
                 <button 
                   type="submit"
-                  disabled={emailStatus === 'submitting' || emailStatus === 'success'}
-                  className={`px-8 py-3.5 rounded-xl font-bold transition-all shrink-0 ${
-                    emailStatus === 'success' ? 'bg-brand-emerald text-white' : 
-                    'bg-brand-indigo hover:brightness-110 text-white shadow-lg shadow-brand-indigo/20'
-                  }`}
+                  className="px-8 py-3.5 rounded-xl font-bold transition-all shrink-0 bg-brand-indigo hover:brightness-110 text-white shadow-lg shadow-brand-indigo/20"
                 >
-                  {emailStatus === 'submitting' ? (
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : emailStatus === 'success' ? (
-                    <CheckCircle2 size={20} />
-                  ) : (
-                    'Suscribirse'
-                  )}
+                  Suscribirse
                 </button>
               </div>
-              
-              {emailStatus === 'success' && (
-                <motion.p 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mt-6 text-brand-emerald font-semibold"
-                >
-                  ✓ Suscrito. Revisa tu email para confirmar.
-                </motion.p>
-              )}
             </form>
             
             <p className="mt-8 text-text-tertiary text-xs">
@@ -1213,7 +1567,38 @@ export default function App() {
             </p>
           </div>
         </section>
-      </main>
+      </motion.div>
+    ) : view === 'checkout' ? (
+      <motion.div
+        key="checkout"
+        initial={{ opacity: 0, scale: 0.98 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 1.02 }}
+      >
+        {selectedPlan && (
+          <CheckoutPage 
+            plan={selectedPlan} 
+            onBack={() => setView('landing')} 
+          />
+        )}
+      </motion.div>
+    ) : view === 'article' ? (
+      <motion.div
+        key="article"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+      >
+        {selectedArticle && (
+          <ArticlePage 
+            article={selectedArticle} 
+            onBack={() => setView('landing')} 
+          />
+        )}
+      </motion.div>
+    ) : null}
+  </AnimatePresence>
+</main>
 
       <footer className="bg-[#07070C] pt-24 pb-12 px-6 border-t border-border-subtle">
         <div className="max-w-7xl mx-auto">

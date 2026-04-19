@@ -1,20 +1,43 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Edgio - Inteligencia en Mercados de PredicciÃ³n
 
-# Run and deploy your AI Studio app
+Edgio es una plataforma avanzada de anÃ¡lisis cuantitativo para mercados de predicciÃ³n como Polymarket. Utiliza enfoques de superforecasting e inteligencia bayesiana para identificar ineficiencias de mercado.
 
-This contains everything you need to run your app locally.
+## ï¿½ï¿½ Despliegue en Vercel
 
-View your app in AI Studio: https://ai.studio/apps/b91767c2-94ea-4f63-bd39-c04595fbfefc
+Para desplegar este proyecto en Vercel de forma correcta:
 
-## Run Locally
+1. **Subir a GitHub**: AsegÃºrate de que el cÃ³digo estÃ© en un repositorio de GitHub.
+2. **Importar en Vercel**: Ve a [vercel.com](https://vercel.com), dale a "Add New" -> "Project" e importa tu repositorio.
+3. **Configurar Variables de Entorno**: Es CRUCIAL que aÃ±adas las variables necesarias en la configuraciÃ³n de Vercel (Settings -> Environment Variables):
+   - `GEMINI_API_KEY`: Tu clave de API de Google Gemini (si la usas para funciones de IA).
+4. **Build settings**: Vercel detectarÃ¡ automÃ¡ticamente que es un proyecto de Vite. Los valores por defecto son correctos:
+   - Framework Preset: `Vite`
+   - Build Command: `npm run build`
+   - Output Directory: `dist`
 
-**Prerequisites:**  Node.js
+## ï¿½ï¿½ Desarrollo Local
 
+1. Instala las dependencias:
+   ```bash
+   npm install
+   ```
+2. Inicia el servidor de desarrollo:
+   ```bash
+   npm run dev
+   ```
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## ï¿½ï¿½ GuÃ­a para GitHub
+
+Si es la primera vez que lo subes, usa estos comandos:
+
+```bash
+git init
+git add .
+git commit -m "Initial commit: Edgio Platform"
+git branch -M main
+git remote add origin https://github.com/tu-usuario/nombre-del-repo.git
+git push -u origin main
+```
+
+---
+*Edgio no ofrece asesoramiento financiero. Los mercados de predicciÃ³n implican riesgo real.*

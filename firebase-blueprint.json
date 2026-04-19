@@ -1,0 +1,54 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User account data including subscription and activity points",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "subscriptionStatus": { 
+          "type": "string", 
+          "enum": ["free", "pro", "annual"],
+          "description": "Current subscription tier" 
+        },
+        "points": { "type": "number", "description": "Loyalty or activity points" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "subscriptionStatus", "points"]
+    },
+    "Analysis": {
+      "title": "Predictive Analysis",
+      "description": "Market assessments and probability estimations",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "category": { "type": "string" },
+        "eventDate": { "type": "string", "format": "date-time" },
+        "pMarket": { "type": "number", "description": "Market probability (0-100)" },
+        "pReal": { "type": "number", "description": "Estimated true probability (0-100)" },
+        "edge": { "type": "number" },
+        "content": { "type": "string", "description": "Full markdown analysis text" },
+        "summary": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "resolved"] },
+        "resolution": { "type": "string" },
+        "isCorrect": { "type": "boolean" },
+        "imageUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Individual user profiles and points"
+    },
+    "/analysis/{analysisId}": {
+      "schema": "Analysis",
+      "description": "Collection of all market analyses"
+    }
+  }
+}

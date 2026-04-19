@@ -30,9 +30,13 @@ import {
   CreditCard,
   Wallet,
   Shield,
-  Clock
+  Clock,
+  History,
+  Settings,
+  User,
+  LogOut
 } from 'lucide-react';
-import { motion, AnimatePresence, useScroll, useSpring } from 'motion/react';
+import { motion, AnimatePresence, useScroll, useSpring } from 'framer-motion';
 import {
   Chart as ChartJS,
   LinearScale,
@@ -43,20 +47,31 @@ import {
   ScatterController
 } from 'chart.js';
 import { Scatter } from 'react-chartjs-2';
+import { auth, googleProvider, syncUserProfile, UserProfile, db } from './lib/firebase';
+import { signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth';
+import { doc, onSnapshot, updateDoc, serverTimestamp, collection, query, orderBy } from 'firebase/firestore';
 
 ChartJS.register(LinearScale, PointElement, LineElement, Tooltip, Legend, ScatterController);
 
+import ReactMarkdown from 'react-markdown';
+
 // --- Types ---
-interface AnalysisCard {
+interface Analysis {
   id: string;
-  category: 'Política' | 'Economía' | 'Crypto' | 'Deportes';
   title: string;
-  marketProb: number;
-  ourProb: number;
-  conviction: number;
-  publishedAt: string;
-  liquidity: string;
-  daysRemaining: number;
+  category: string;
+  eventDate: any;
+  pMarket: number;
+  pReal: number;
+  edge: number;
+  content: string;
+  summary: string;
+  status: 'active' | 'resolved';
+  resolution?: string;
+  isCorrect?: boolean;
+  imageUrl?: string;
+  createdAt: any;
+  polymarketId?: string; // ID for live sync
 }
 
 interface TrackRecordEntry {
@@ -97,10 +112,18 @@ const StatItem = ({ value, label, subtext, highlight = 'indigo' }: { value: stri
   const isEdge = value.startsWith('+');
 
   useEffect(() => {
+    if (isNaN(target)) {
+      setCount(0);
+      return;
+    }
     let start = 0;
     const duration = 1200;
     const increment = target / (duration / 16);
     
+    if (target === 0) {
+      setCount(0);
+      return;
+    }
     const timer = setInterval(() => {
       start += increment;
       if ((increment > 0 && start >= target) || (increment < 0 && start <= target)) {
@@ -132,8 +155,8 @@ const StatItem = ({ value, label, subtext, highlight = 'indigo' }: { value: stri
   );
 };
 
-const AnalysisCardComp = ({ data, onPremiumClick }: { data: AnalysisCard, onPremiumClick: () => void, key?: React.Key }) => {
-  const edge = data.ourProb - data.marketProb;
+const AnalysisCardComp = ({ data, onClick }: { data: any, onClick: () => void, key?: React.Key }) => {
+  const edge = (data.ourProb || data.pReal) - (data.marketProb || data.pMarket);
   const isPositiveEdge = edge > 0;
 
   return (
@@ -145,13 +168,18 @@ const AnalysisCardComp = ({ data, onPremiumClick }: { data: AnalysisCard, onPrem
       className="bg-bg-card border border-border-subtle rounded-xl p-5 transition-all duration-200 group"
     >
       <div className="flex justify-between items-center mb-4">
-        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-          data.category === 'Política' ? 'bg-brand-indigo/20 text-brand-indigo' :
-          data.category === 'Economía' ? 'bg-brand-emerald/20 text-brand-emerald' :
-          'bg-amber-500/20 text-amber-500'
-        }`}>
-          {data.category}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+            data.category === 'Política' ? 'bg-brand-indigo/20 text-brand-indigo' :
+            data.category === 'Economía' ? 'bg-brand-emerald/20 text-brand-emerald' :
+            'bg-amber-500/20 text-amber-500'
+          }`}>
+            {data.category}
+          </span>
+          <span className="px-2 py-0.5 bg-brand-emerald/10 text-brand-emerald rounded text-[10px] font-bold uppercase tracking-wider">
+            Gratuito
+          </span>
+        </div>
         <span className="font-mono text-[10px] text-text-tertiary">
           {data.daysRemaining} DÍAS REST.
         </span>
@@ -199,10 +227,10 @@ const AnalysisCardComp = ({ data, onPremiumClick }: { data: AnalysisCard, onPrem
       </div>
 
       <button 
-        onClick={onPremiumClick}
+        onClick={onClick}
         className="w-full mt-6 flex items-center justify-center gap-1 text-brand-indigo font-bold text-[11px] uppercase tracking-wider hover:underline transition-all"
       >
-        Ver análisis completo <ChevronRight size={14} />
+        Ver análisis <ChevronRight size={14} />
       </button>
     </motion.div>
   );
@@ -349,8 +377,505 @@ const ArticlePage = ({ article, onBack }: { article: AcademyArticle, onBack: () 
   );
 };
 
-const CheckoutPage = ({ plan, onBack }: { plan: Plan, onBack: () => void }) => {
+const PolymarketFeed = () => {
+  const [markets, setMarkets] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMarkets = async () => {
+      try {
+        const res = await fetch('/api/polymarket/trending');
+        const data = await res.json();
+        setMarkets(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error('Feed error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchMarkets();
+  }, []);
+
+  if (loading) return (
+    <div className="py-12 flex justify-center">
+      <div className="w-6 h-6 border-2 border-brand-indigo border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between mb-2">
+        <h4 className="text-xs font-bold uppercase tracking-widest text-text-tertiary">Mercados en Tendencia (CLOB Sync)</h4>
+        <div className="flex items-center gap-2">
+          <Activity size={12} className="text-brand-emerald animate-pulse" />
+          <span className="text-[10px] text-brand-emerald font-bold uppercase tracking-tighter">Live Orderbook</span>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-4">
+        {markets.slice(0, 5).map((m: any) => (
+          <div key={m.id} className="bg-white/5 border border-white/10 p-5 rounded-2xl group hover:border-brand-indigo/40 transition-all duration-300">
+            {/* Market Info */}
+            <div className="mb-4">
+              <div className="flex items-start justify-between gap-4 mb-2">
+                <p className="text-sm font-semibold leading-tight group-hover:text-white transition-colors">{m.question}</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[9px] px-2 py-0.5 bg-white/5 text-text-tertiary rounded uppercase border border-white/5 font-bold">{m.category}</span>
+                {m.tags && m.tags.slice(0, 1).map((tag: any) => (
+                  <span key={tag.id} className="text-[9px] px-2 py-0.5 bg-brand-indigo/10 text-brand-indigo rounded uppercase font-bold">
+                    {tag.name}
+                  </span>
+                ))}
+                {m.series && (
+                  <span className="text-[9px] px-2 py-0.5 bg-white/5 text-text-tertiary rounded uppercase italic">
+                    Part of {m.series.title}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Trading Data (CLOB) */}
+            <div className="grid grid-cols-3 gap-2 pt-4 border-t border-white/5">
+              <div className="text-left">
+                <p className="text-[9px] text-text-tertiary uppercase mb-1">Midpoint</p>
+                <p className="font-mono text-xs font-bold text-white">
+                  {m.clob?.midpoint ? `${(parseFloat(m.clob.midpoint) * 100).toFixed(1)}%` : `${(m.lastTradePrice * 100).toFixed(1)}%`}
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-[9px] text-text-tertiary uppercase mb-1">Spread</p>
+                <p className="font-mono text-xs font-bold text-brand-indigo">
+                  {m.clob?.spread ? (m.clob.spread * 100).toFixed(2) : '0.00'}%
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-[9px] text-text-tertiary uppercase mb-1">Volume</p>
+                <p className="font-mono text-xs font-bold text-text-secondary">
+                  ${(m.volume / 1000000).toFixed(1)}M
+                </p>
+              </div>
+            </div>
+            
+            {/* Token ID indicator (small) */}
+            <div className="mt-3 flex items-center justify-between">
+              <div className="flex items-center gap-1.5 opacity-30">
+                <div className="w-1.5 h-1.5 bg-brand-indigo rounded-full" />
+                <span className="text-[8px] font-mono tracking-tighter uppercase truncate max-w-[150px]">
+                  ID: {m.tokenUsed?.tokenId || 'N/A'}
+                </span>
+              </div>
+              <ArrowRight size={10} className="text-text-tertiary group-hover:translate-x-1 transition-transform" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const AnalysisPage = ({ onBack }: { onBack: () => void }) => {
+  const [analyses, setAnalyses] = useState<Analysis[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const q = query(collection(db, 'analysis'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data: Analysis[] = [];
+      snapshot.forEach((doc) => {
+        data.push({ id: doc.id, ...doc.data() } as Analysis);
+      });
+      setAnalyses(data);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-bg-base text-text-primary px-6 py-24">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-16 gap-6">
+          <div>
+            <h1 className="text-4xl md:text-5xl font-bold mb-4">Análisis Estratégicos</h1>
+            <p className="text-text-secondary text-lg">Predicciones calibradas y detección de edge en tiempo real.</p>
+          </div>
+          <button 
+            onClick={onBack} 
+            className="flex items-center gap-2 text-text-tertiary hover:text-brand-indigo transition-all font-mono text-xs uppercase tracking-widest bg-white/5 px-4 py-2 rounded-xl"
+          >
+            <ArrowRight size={14} className="rotate-180" /> Volver
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-32 space-y-4">
+            <div className="w-10 h-10 border-2 border-brand-indigo border-t-transparent rounded-full animate-spin" />
+            <p className="text-text-tertiary font-mono text-[10px] tracking-widest uppercase">Procesando Inteligencia...</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+            {/* Main Content */}
+            <div className="lg:col-span-8">
+              {analyses.length === 0 ? (
+                <div className="text-center py-24 bg-bg-card border-2 border-dashed border-border-subtle rounded-3xl">
+                  <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <BarChart3 size={24} className="text-text-tertiary opacity-50" />
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">Sin análisis activos</h3>
+                  <p className="text-text-tertiary text-sm max-w-xs mx-auto">Vuelve en unas horas.</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {analyses.map((analysis) => (
+                    <motion.div 
+                      key={analysis.id}
+                      layout
+                      className={`bg-bg-card border border-border-subtle rounded-3xl overflow-hidden transition-all duration-500 ease-in-out ${expandedId === analysis.id ? 'ring-1 ring-brand-indigo shadow-2xl shadow-brand-indigo/10' : 'hover:border-brand-indigo/30'}`}
+                    >
+                      <div 
+                        className="p-8 cursor-pointer flex items-center justify-between gap-6"
+                        onClick={() => setExpandedId(expandedId === analysis.id ? null : analysis.id)}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-4 mb-4">
+                            <span className="px-3 py-1 bg-brand-indigo/10 text-brand-indigo rounded-lg text-[10px] font-bold uppercase tracking-widest">{analysis.category}</span>
+                            <span className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest ${analysis.status === 'active' ? 'bg-brand-emerald/10 text-brand-emerald' : 'bg-text-tertiary/10 text-text-tertiary'}`}>
+                              {analysis.status === 'active' ? '● En Proceso' : 'Resuelto'}
+                            </span>
+                          </div>
+                          <h3 className="text-2xl font-bold truncate pr-4">{analysis.title}</h3>
+                        </div>
+                        
+                        <div className="flex items-center gap-12 text-right">
+                          <div className="hidden sm:block">
+                            <p className="text-[10px] text-text-tertiary uppercase tracking-widest mb-1.5">Edge</p>
+                            <p className={`text-2xl font-mono font-bold leading-none ${analysis.edge > 0 ? 'text-brand-emerald' : 'text-brand-danger'}`}>
+                              {analysis.edge > 0 ? '+' : ''}{analysis.edge}
+                            </p>
+                          </div>
+                          <div className={`p-3 rounded-2xl bg-white/5 transition-all duration-500 ${expandedId === analysis.id ? 'rotate-180 bg-brand-indigo/10 text-brand-indigo' : 'text-text-tertiary'}`}>
+                            {expandedId === analysis.id ? <Minus size={20} /> : <Plus size={20} />}
+                          </div>
+                        </div>
+                      </div>
+
+                      <AnimatePresence>
+                        {expandedId === analysis.id && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="border-t border-border-subtle"
+                          >
+                            <div className="p-8 md:p-12 bg-bg-base/30">
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
+                                <div>
+                                  <p className="text-[10px] text-text-tertiary uppercase tracking-widest mb-2 font-bold">P. Mercado</p>
+                                  <p className="text-2xl font-mono font-bold">{analysis.pMarket}%</p>
+                                </div>
+                                <div>
+                                  <p className="text-[10px] text-text-tertiary uppercase tracking-widest mb-2 font-bold">P. Edgio</p>
+                                  <p className="text-2xl font-mono font-bold text-brand-indigo">{analysis.pReal}%</p>
+                                </div>
+                                <div>
+                                  <p className="text-[10px] text-text-tertiary uppercase tracking-widest mb-2 font-bold">Variación</p>
+                                  <p className="text-2xl font-mono font-bold">±{Math.abs(analysis.pReal - analysis.pMarket) / 2}%</p>
+                                </div>
+                                <div>
+                                  <p className="text-[10px] text-text-tertiary uppercase tracking-widest mb-2 font-bold">Estado</p>
+                                  <p className="text-2xl font-mono font-bold flex items-center gap-2 uppercase">
+                                    {analysis.status === 'active' ? <Clock size={20} className="text-brand-indigo" /> : <ShieldCheck size={20} className="text-brand-emerald" />}
+                                    {analysis.status}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="prose prose-invert max-w-none prose-p:text-text-secondary prose-p:leading-relaxed prose-headings:text-text-primary prose-strong:text-text-primary border-t border-border-subtle pt-12">
+                                <ReactMarkdown>{analysis.content}</ReactMarkdown>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Sidebar Feed */}
+            <div className="lg:col-span-4 space-y-8">
+              <div className="bg-bg-card border border-border-subtle rounded-3xl p-6 sticky top-32">
+                <PolymarketFeed />
+                
+                <div className="mt-8 pt-8 border-t border-border-subtle">
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-4">Fuentes Vinculadas</h4>
+                  <div className="space-y-4">
+                    {[
+                      { name: 'Gamma API', status: 'Online', url: 'gamma-api.polymarket.com' },
+                      { name: 'Data API', status: 'Online', url: 'data-api.polymarket.com' },
+                      { name: 'CLOB API', status: 'Active', url: 'clob.polymarket.com' }
+                    ].map(api => (
+                      <div key={api.name} className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs font-semibold">{api.name}</p>
+                          <p className="text-[10px] text-text-tertiary truncate max-w-[120px]">{api.url}</p>
+                        </div>
+                        <span className="flex items-center gap-1.5 text-[9px] font-bold text-brand-emerald bg-brand-emerald/10 px-2 py-0.5 rounded">
+                          <div className="w-1 h-1 bg-brand-emerald rounded-full" /> {api.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const UserDashboard = ({ user, onBack, showToast }: { user: UserProfile, onBack: () => void, showToast: (m: string) => void }) => {
+  const [activeTab, setActiveTab] = useState<'resumen' | 'actividad' | 'config'>('resumen');
+
+  const stats = [
+    { label: 'Puntos Edgio', value: user.points, icon: <Shield className="text-brand-indigo" size={24} />, subtext: 'Karma de predicción', color: 'indigo' },
+    { label: 'Reputación', value: 'B+', icon: <BarChart3 className="text-brand-indigo" size={24} />, subtext: 'Calibración histórica', color: 'indigo' },
+    { label: 'Estado', value: user.subscriptionStatus.toUpperCase(), icon: <Activity className="text-brand-indigo" size={24} />, subtext: 'Nivel de acceso', color: 'indigo' }
+  ];
+
+  const activities = [
+    { type: 'deposito', label: 'Bono de Bienvenida', amount: '+100 pts', date: 'Hoy', status: 'Completo' },
+    { type: 'analisis', label: 'Acceso Análisis: Uruguay 2024', amount: '-0€', date: 'Ayer', status: 'Gratis' },
+  ];
+
+  return (
+    <div className="min-h-screen pt-8 pb-24 max-w-6xl mx-auto px-6">
+      <div className="flex items-center justify-between mb-12">
+        <button 
+          onClick={onBack}
+          className="flex items-center gap-2 text-text-tertiary hover:text-text-primary transition-colors font-medium text-sm"
+        >
+          <ArrowRight size={16} className="rotate-180" /> Volver al Inicio
+        </button>
+        <div className="flex items-center gap-2 text-text-tertiary text-xs bg-white/5 px-3 py-1.5 rounded-full">
+          <Clock size={14} /> Actualizado ahora
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        {/* Sidebar */}
+        <aside className="lg:col-span-1 space-y-2">
+          <div className="p-6 bg-bg-card border border-border-subtle rounded-2xl mb-6">
+            <div className="w-16 h-16 rounded-2xl border-2 border-brand-indigo/30 p-1 mb-4">
+              <img src={user.photoURL || 'https://picsum.photos/seed/user/200/200'} alt="Avatar" className="w-full h-full object-cover rounded-xl" referrerPolicy="no-referrer" />
+            </div>
+            <h2 className="text-xl font-bold truncate">{user.displayName}</h2>
+            <p className="text-text-tertiary text-sm truncate mb-4">{user.email}</p>
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-brand-indigo/10 text-brand-indigo rounded-lg text-[10px] font-bold uppercase tracking-wider">
+              <Zap size={12} fill="currentColor" /> {user.subscriptionStatus} account
+            </div>
+          </div>
+
+          <nav className="space-y-1">
+            {[
+              { id: 'resumen', label: 'Resumen General', icon: <Layers size={18} /> },
+              { id: 'actividad', label: 'Historial', icon: <History size={18} /> },
+              { id: 'config', label: 'Configuración', icon: <Settings size={18} /> }
+            ].map(item => (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id as any)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${activeTab === item.id ? 'bg-brand-indigo text-white shadow-lg shadow-brand-indigo/20' : 'text-text-secondary hover:bg-white/5'}`}
+              >
+                {item.icon} {item.label}
+              </button>
+            ))}
+          </nav>
+        </aside>
+
+        {/* Content */}
+        <main className="lg:col-span-3 space-y-8">
+          <AnimatePresence mode="wait">
+            {activeTab === 'resumen' && (
+              <motion.div
+                key="resumen"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="space-y-8"
+              >
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {stats.map((stat, i) => (
+                    <div key={i} className="bg-bg-card border border-border-subtle p-6 rounded-2xl group hover:border-brand-indigo/30 transition-colors">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className={`p-2.5 rounded-xl bg-brand-${stat.color}/10 text-brand-${stat.color}`}>
+                          {stat.icon}
+                        </div>
+                        <ChevronRight size={16} className="text-text-tertiary group-hover:translate-x-1 transition-transform" />
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-text-tertiary text-xs font-medium uppercase tracking-widest">{stat.label}</span>
+                        <h4 className="text-2xl font-bold font-mono">{stat.value}</h4>
+                        <div className="flex items-center justify-between">
+                          <p className="text-[10px] text-text-tertiary">{stat.subtext}</p>
+                          {stat.label === 'Puntos Edgio' && (
+                            <button 
+                              onClick={async () => {
+                                const userRef = doc(db, 'users', user.uid);
+                                await updateDoc(userRef, { points: user.points + 50 });
+                                showToast('+50 puntos añadidos por actividad');
+                              }}
+                              className="text-[10px] font-bold text-brand-indigo hover:brightness-125 transition-all"
+                            >
+                              +50 pts
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="bg-bg-card border border-border-subtle rounded-2xl overflow-hidden">
+                    <div className="p-6 border-b border-border-subtle flex justify-between items-center">
+                      <h3 className="font-bold flex items-center gap-2"><Target size={18} className="text-brand-indigo" /> Tus Mercados</h3>
+                      <button className="text-[10px] uppercase font-bold text-brand-indigo hover:underline">Ver todos</button>
+                    </div>
+                    <div className="p-8 text-center space-y-4">
+                      <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-2">
+                        <TrendingUp size={24} className="text-text-tertiary" />
+                      </div>
+                      <p className="text-text-secondary text-sm">Aún no has participado en ningún mercado de predicción.</p>
+                      <button 
+                        onClick={onBack}
+                        className="text-xs font-bold px-4 py-2 bg-brand-indigo/10 text-brand-indigo rounded-lg hover:bg-brand-indigo/20 transition-colors"
+                      >
+                        Explorar Análisis
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="bg-bg-card border border-border-subtle rounded-2xl p-8 flex flex-col justify-between">
+                    <div>
+                      <h3 className="font-bold mb-2 flex items-center gap-2"><Zap size={18} className="text-brand-indigo" /> Mejora tu Edge</h3>
+                      <p className="text-text-secondary text-sm mb-6 leading-relaxed">
+                        Desbloquea análisis avanzados y exportación de datos con el plan Sistema.
+                      </p>
+                    </div>
+                    <div className="bg-bg-base/50 p-4 rounded-xl border border-border-subtle mb-6">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs text-text-tertiary">Progreso de Puntos</span>
+                        <span className="text-xs font-mono">100 / 1000</span>
+                      </div>
+                      <div className="h-1.5 w-full bg-border-subtle rounded-full overflow-hidden">
+                        <div className="h-full bg-brand-indigo w-[10%]" />
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => { onBack(); setTimeout(() => document.getElementById('suscripcion')?.scrollIntoView({ behavior: 'smooth' }), 100); }}
+                      className="w-full py-3 bg-brand-indigo text-white font-bold rounded-xl text-sm shadow-lg shadow-brand-indigo/20"
+                    >
+                      Ver Planes Pro
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'actividad' && (
+              <motion.div
+                key="actividad"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="bg-bg-card border border-border-subtle rounded-2xl overflow-hidden"
+              >
+                <div className="p-6 border-b border-border-subtle">
+                  <h3 className="font-bold">Historial de Transacciones</h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="border-b border-border-subtle">
+                        <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-text-tertiary">Concepto</th>
+                        <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-text-tertiary">Fecha</th>
+                        <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-text-tertiary">Importe/Puntos</th>
+                        <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-text-tertiary text-right">Estado</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border-subtle">
+                      {activities.map((act, i) => (
+                        <tr key={i} className="hover:bg-white/5 transition-colors">
+                          <td className="px-6 py-4 text-sm font-medium text-text-primary">{act.label}</td>
+                          <td className="px-6 py-4 text-xs text-text-tertiary">{act.date}</td>
+                          <td className={`px-6 py-4 text-sm font-mono font-bold ${act.amount.startsWith('+') ? 'text-brand-emerald' : 'text-brand-indigo'}`}>{act.amount}</td>
+                          <td className="px-6 py-4 text-right leading-none">
+                            <span className="inline-block px-2 py-1 bg-brand-emerald/10 text-brand-emerald rounded text-[10px] font-bold uppercase">{act.status}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'config' && (
+              <motion.div
+                key="config"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="max-w-2xl"
+              >
+                <div className="bg-bg-card border border-border-subtle rounded-2xl p-8 space-y-8">
+                  <div>
+                    <h3 className="text-xl font-bold mb-6">Ajustes de Perfil</h3>
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 gap-4">
+                        <div>
+                          <label className="block text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-2">Nombre Público</label>
+                          <input disabled value={user.displayName} className="w-full bg-bg-base border border-border-subtle rounded-xl px-4 py-3 text-sm opacity-50" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-2">Login vinculado</label>
+                        <div className="flex items-center gap-3 bg-bg-base border border-border-subtle p-4 rounded-xl">
+                          <img src="https://www.gstatic.com/images/branding/product/1x/googleg_48dp.png" className="w-5 h-5" alt="Google" />
+                          <span className="text-sm">{user.email}</span>
+                          <span className="ml-auto text-[10px] font-bold text-brand-emerald uppercase">Conectado</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-8 border-t border-border-subtle">
+                    <h3 className="text-xl font-bold mb-6">Seguridad</h3>
+                    <div className="flex items-center justify-between p-4 bg-red-500/5 border border-red-500/20 rounded-xl">
+                      <div>
+                        <p className="text-sm font-bold text-red-500">¿Cerrar todas las sesiones?</p>
+                        <p className="text-[10px] text-text-tertiary">Desvinculará este dispositivo de Edgio permanentemente.</p>
+                      </div>
+                      <button className="px-4 py-2 border border-red-500/50 text-red-500 text-xs font-bold rounded-lg hover:bg-red-500 hover:text-white transition-all">Cerrar Sesión</button>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </main>
+      </div>
+    </div>
+  );
+};
+
+const CheckoutPage = ({ plan, onBack, user, onLogin, showToast }: { plan: Plan, onBack: () => void, user: UserProfile | null, onLogin: () => void, showToast: (m: string) => void }) => {
   const [step, setStep] = useState(1);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     cardName: '',
@@ -474,8 +999,32 @@ const CheckoutPage = ({ plan, onBack }: { plan: Plan, onBack: () => void }) => {
                     </div>
                   </div>
 
-                  <button className="w-full bg-brand-indigo hover:brightness-110 text-white font-bold py-4 rounded-xl shadow-lg shadow-brand-indigo/20 transition-all flex items-center justify-center gap-2 mt-8">
-                    Finalizar pago: {plan.price}{plan.period && <span className="text-white/60 font-normal">/{plan.period}</span>}
+                  <button 
+                    disabled={isProcessing}
+                    onClick={async () => {
+                      if (!user) {
+                        onLogin();
+                        return;
+                      }
+                      setIsProcessing(true);
+                      try {
+                        const userDocRef = doc(db, 'users', user.uid);
+                        await updateDoc(userDocRef, {
+                          subscriptionStatus: plan.id,
+                          updatedAt: serverTimestamp()
+                        });
+                        showToast('¡Bienvenido! Tu plan ' + plan.name + ' ya está activo.');
+                        onBack();
+                      } catch (e) {
+                        console.error(e);
+                        showToast('Error al procesar la suscripción');
+                      } finally {
+                        setIsProcessing(false);
+                      }
+                    }}
+                    className="w-full bg-brand-indigo hover:brightness-110 disabled:opacity-50 text-white font-bold py-4 rounded-xl shadow-lg shadow-brand-indigo/20 transition-all flex items-center justify-center gap-2 mt-8"
+                  >
+                    {isProcessing ? 'Procesando...' : `Finalizar pago: ${plan.price}${plan.period ? '/' + plan.period : ''}`}
                   </button>
                   <p className="text-center text-[11px] text-text-tertiary mt-4">
                     Al confirmar, aceptas nuestros términos de servicio y política de privacidad.
@@ -541,13 +1090,54 @@ const CheckoutPage = ({ plan, onBack }: { plan: Plan, onBack: () => void }) => {
 export default function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState('Todos');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
   const [email, setEmail] = useState('');
   const [emailStatus, setEmailStatus] = useState<'idle' | 'invalid' | 'submitting' | 'success'>('idle');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [toast, setToast] = useState<string | null>(null);
-  const [view, setView] = useState<'landing' | 'checkout' | 'article'>('landing');
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        try {
+          const profile = await syncUserProfile(firebaseUser);
+          setCurrentUser(profile);
+          
+          const userDocRef = doc(db, 'users', firebaseUser.uid);
+          const unsubProfile = onSnapshot(userDocRef, (doc) => {
+            if (doc.exists()) {
+              setCurrentUser(doc.data() as UserProfile);
+            }
+          });
+          return () => unsubProfile();
+        } catch (error) {
+          console.error("Error syncing profile:", error);
+        }
+      } else {
+        setCurrentUser(null);
+      }
+      setIsAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleLogin = async () => {
+    try {
+      await signInWithPopup(auth, googleProvider);
+      showToast('Sesión iniciada como ' + auth.currentUser?.displayName);
+    } catch (error) {
+      console.error(error);
+      showToast('Error al iniciar sesión');
+    }
+  };
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    showToast('Sesión cerrada');
+    setView('landing');
+  };
+  const [view, setView] = useState<'landing' | 'checkout' | 'article' | 'dashboard' | 'analysis'>('landing');
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [selectedArticle, setSelectedArticle] = useState<AcademyArticle | null>(null);
   
@@ -558,14 +1148,13 @@ export default function App() {
     restDelta: 0.001
   });
 
-  const analysisCards: AnalysisCard[] = [
+  const analysisCards: any[] = [
     {
       id: '1',
       category: 'Política',
       title: '¿Ganará la candidata de la oposición la segunda vuelta en Brasil?',
       marketProb: 42,
       ourProb: 53,
-      conviction: 8,
       publishedAt: '2024-04-20',
       liquidity: '$124.5k',
       daysRemaining: 14
@@ -576,7 +1165,6 @@ export default function App() {
       title: '¿Recortará el BCE tipos antes de la reunión de junio?',
       marketProb: 61,
       ourProb: 65,
-      conviction: 6,
       publishedAt: '2024-04-18',
       liquidity: '$2.1M',
       daysRemaining: 42
@@ -587,7 +1175,6 @@ export default function App() {
       title: '¿Alcanzará Ethereum un nuevo máximo histórico antes de julio?',
       marketProb: 34,
       ourProb: 22,
-      conviction: 7,
       publishedAt: '2024-04-21',
       liquidity: '$890k',
       daysRemaining: 68
@@ -647,16 +1234,9 @@ export default function App() {
   const filteredCards = useMemo(() => {
     return analysisCards.filter(card => {
       const matchesCategory = activeFilter === 'Todos' || card.category === activeFilter;
-      
-      const cardDate = new Date(card.publishedAt);
-      const start = startDate ? new Date(startDate) : null;
-      const end = endDate ? new Date(endDate) : null;
-      
-      const matchesDate = (!start || cardDate >= start) && (!end || cardDate <= end);
-      
-      return matchesCategory && matchesDate;
+      return matchesCategory;
     });
-  }, [activeFilter, startDate, endDate, analysisCards]);
+  }, [activeFilter, analysisCards]);
 
   const calibrateData: any = {
     datasets: [
@@ -765,7 +1345,6 @@ export default function App() {
     { name: 'Track Record', id: 'track-record' },
     { name: 'Guía', id: 'guia' },
     { name: 'Metodología', id: 'metodologia' },
-    { name: 'Academia', id: 'academia' },
     { name: 'Suscripción', id: 'suscripcion' }
   ];
 
@@ -795,7 +1374,7 @@ export default function App() {
       {/* Header */}
       <header className="sticky top-0 z-[100] backdrop-blur-xl bg-bg-base/85 border-b border-border-subtle">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2 cursor-pointer group">
+          <div className="flex items-center gap-2 cursor-pointer group" onClick={() => setView('landing')}>
             <span className="w-8 h-8 rounded-lg bg-brand-indigo flex items-center justify-center text-white font-bold group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(99,102,241,0.3)]">
               ◆
             </span>
@@ -807,13 +1386,19 @@ export default function App() {
 
           <nav className="hidden md:flex items-center gap-8">
             {navItems.map((item, idx) => (
-              <a 
+              <button 
                 key={item.name} 
-                href={`#${item.id}`} 
+                onClick={() => {
+                  if (item.id === 'analisis') setView('analysis');
+                  else {
+                    setView('landing');
+                    setTimeout(() => document.getElementById(item.id)?.scrollIntoView({ behavior: 'smooth' }), 50);
+                  }
+                }}
                 className={`${idx === 0 ? 'text-brand-indigo' : 'text-text-secondary hover:text-text-primary'} text-sm font-medium transition-colors`}
               >
                 {item.name}
-              </a>
+              </button>
             ))}
           </nav>
 
@@ -824,24 +1409,42 @@ export default function App() {
             >
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
-            <button 
-              onClick={() => showToast('Módulo de acceso en desarrollo')}
-              className="hidden sm:inline-block text-sm font-medium text-text-secondary hover:text-text-primary px-4 py-2 rounded-md transition-colors"
-            >
-              Acceder
-            </button>
-            <button 
-              onClick={() => {
-                if (view !== 'landing') {
-                  setView('landing');
-                } else {
-                  document.getElementById('suscripcion')?.scrollIntoView();
-                }
-              }}
-              className="bg-brand-indigo hover:brightness-110 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-all shadow-[0_4px_12px_rgba(99,102,241,0.2)]"
-            >
-              Suscribirse
-            </button>
+            
+            {currentUser ? (
+              <div className="flex items-center gap-4">
+                <div className="hidden lg:flex flex-col items-end">
+                  <span className="text-brand-indigo font-bold text-xs uppercase tracking-widest">{currentUser.subscriptionStatus}</span>
+                  <div className="flex items-center gap-2 text-text-primary text-xs font-mono">
+                    <span className="flex items-center gap-1"><Shield size={12} className="text-brand-indigo" /> {currentUser.points} pts</span>
+                  </div>
+                </div>
+                <div className="relative group">
+                  <button className="w-10 h-10 rounded-full border border-brand-indigo/30 overflow-hidden hover:scale-105 transition-transform">
+                    <img src={currentUser.photoURL || 'https://picsum.photos/seed/user/100/100'} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  </button>
+                  <div className="absolute top-full right-0 mt-2 w-48 bg-bg-card border border-border-subtle rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-[200] p-2">
+                    <div className="px-3 py-2 border-b border-border-subtle mb-2">
+                      <p className="text-text-primary font-semibold truncate text-sm">{currentUser.displayName}</p>
+                      <p className="text-text-tertiary text-[10px] truncate">{currentUser.email}</p>
+                    </div>
+                    <button onClick={() => setView('dashboard')} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-text-secondary hover:bg-white/5 rounded-lg transition-colors">
+                      <Target size={14} /> Mi Panel
+                    </button>
+                    <button onClick={handleLogout} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-brand-indigo hover:bg-brand-indigo/10 rounded-lg transition-colors">
+                      <LogOut size={14} /> Cerrar Sesión
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <button 
+                onClick={handleLogin}
+                className="hidden sm:inline-block text-sm font-medium text-text-secondary hover:text-text-primary px-4 py-2 rounded-md transition-colors"
+              >
+                Acceder
+              </button>
+            )}
+
             <button 
               onClick={() => setIsMenuOpen(true)}
               className="md:hidden p-2 text-text-primary"
@@ -1038,33 +1641,6 @@ export default function App() {
                   </button>
                 ))}
               </div>
-              
-              <div className="flex items-center gap-3 bg-bg-card border border-border-subtle p-2 rounded-xl self-start">
-                <Calendar size={14} className="text-text-tertiary ml-2" />
-                <div className="flex items-center gap-2">
-                  <input 
-                    type="date" 
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="bg-transparent text-xs text-text-secondary outline-none focus:text-brand-indigo transition-colors"
-                  />
-                  <span className="text-text-tertiary text-[10px]">a</span>
-                  <input 
-                    type="date" 
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="bg-transparent text-xs text-text-secondary outline-none focus:text-brand-indigo transition-colors"
-                  />
-                </div>
-                {(startDate || endDate) && (
-                  <button 
-                    onClick={() => { setStartDate(''); setEndDate(''); }}
-                    className="p-1 hover:bg-white/10 rounded-full text-text-tertiary transition-colors"
-                  >
-                    <X size={12} />
-                  </button>
-                )}
-              </div>
             </div>
           </div>
 
@@ -1074,13 +1650,13 @@ export default function App() {
                 <AnalysisCardComp 
                   key={card.id} 
                   data={card} 
-                  onPremiumClick={() => handleSubscribePlan({ 
-                    id: 'pro', 
-                    name: 'Analista', 
-                    price: '19€', 
-                    period: 'mes', 
-                    features: ['Grupo Telegram privado exclusivo', '4-5 análisis semanales completos', 'Intervalos de confianza detallados', 'Alertas de movimientos anómalos', 'Prompts de análisis avanzado', 'Track record con métricas en vivo', 'Sesión de calibración mensual', 'Soporte directo prioritario'] 
-                  })}
+                  onClick={() => {
+                    if (currentUser) {
+                      setView('analysis');
+                    } else {
+                      handleLogin();
+                    }
+                  }}
                 />
               ))}
             </AnimatePresence>
@@ -1097,92 +1673,151 @@ export default function App() {
         </section>
 
         {/* Section 4: Methodology */}
-        <section id="metodologia" className="py-32 px-6 bg-bg-card/30">
-          <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-20 animate-on-scroll">
-              <h2 className="text-3xl font-semibold mb-4">El sistema. No el resultado.</h2>
-              <p className="text-text-secondary max-w-2xl mx-auto">
-                No buscamos tener razón siempre. Buscamos que nuestras probabilidades sean más precisas que las del mercado a largo plazo.
+        <section id="metodologia" className="py-32 px-6 bg-[#0B0B14]">
+          <div className="max-w-4xl mx-auto">
+            <div className="mb-24 animate-on-scroll">
+              <span className="text-brand-indigo font-mono text-sm block mb-4 uppercase tracking-[0.2em]">Framework Científico</span>
+              <h2 className="text-4xl md:text-5xl font-bold mb-8 leading-tight">El sistema completo: cómo funciona la fórmula de edge</h2>
+              <p className="text-text-secondary text-lg leading-relaxed mb-12">
+                Todo el sistema se basa en una idea simple pero que casi nadie ejecuta con rigor: el precio de un mercado de predicción es solo una <span className="text-text-primary font-medium">opinión colectiva</span>, y las opiniones colectivas cometen errores sistemáticos y predecibles. Cuando detectas uno de esos errores antes de que el mercado lo corrija, tienes <span className="text-brand-indigo font-bold italic">edge</span>.
               </p>
-            </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-24 items-center mb-32">
-              <div className="animate-on-scroll">
-                <span className="text-brand-indigo font-mono text-sm block mb-4">Framework EDGE</span>
-                <h3 className="text-2xl font-semibold mb-6">Estimamos probabilidades reales, no opiniones</h3>
-                <p className="text-text-secondary mb-8 leading-relaxed">
-                  Utilizamos un riguroso proceso de actualización bayesiana. Empezamos con tasas base históricas y ajustamos sistemáticamente ante nueva información, evitando el sesgo de recencia que suele dominar el mercado.
-                </p>
-                <ul className="space-y-4">
-                  {[
-                    { icon: '◆', title: 'Base rate histórica', text: 'Análisis de frecuencia de eventos similares.' },
-                    { icon: '◆', title: 'Actualización bayesiana', text: 'Peso proporcional de la información nueva.' },
-                    { icon: '◆', title: 'Detección de sesgo', text: 'Identificación de lo que el precio está ignorando.' },
-                    { icon: '◆', title: 'Edge calculation', text: 'Diferencia estadística neta entre el sistema y el mercado.' },
-                  ].map((item, i) => (
-                    <li key={i} className="flex gap-4">
-                      <span className="text-brand-indigo font-bold mt-1">{item.icon}</span>
-                      <div>
-                        <span className="font-semibold block">{item.title}</span>
-                        <span className="text-text-tertiary text-sm">{item.text}</span>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="animate-on-scroll">
-                <div className="bg-bg-base border border-brand-indigo/30 rounded-2xl p-8 shadow-2xl relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-30 transition-opacity">
-                    <Zap size={120} />
+              <div className="bg-bg-card border border-brand-indigo/30 rounded-3xl p-8 md:p-12 shadow-2xl relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+                  <TrendingUp size={160} />
+                </div>
+                <div className="relative z-10">
+                  <h3 className="text-brand-indigo font-mono text-xs uppercase tracking-widest mb-6 flex items-center gap-2">
+                    <Zap size={14} fill="currentColor" /> La fórmula central
+                  </h3>
+                  <div className="text-3xl md:text-5xl font-bold text-text-primary mb-8 font-mono tracking-tighter">
+                    Edge = P_real − P_mercado
                   </div>
-                  <div className="font-mono text-sm space-y-6">
-                    <div className="flex justify-between items-center text-brand-indigo">
-                      <span>Formula::Edge</span>
-                      <ShieldCheck size={16} />
+                  <div className="space-y-6 text-text-secondary leading-relaxed">
+                    <p>Donde <span className="text-text-primary font-mono text-sm bg-white/5 px-2 py-0.5 rounded">P_mercado</span> es el precio actual en Polymarket (por ejemplo, 58%) y <span className="text-text-primary font-mono text-sm bg-white/5 px-2 py-0.5 rounded">P_real</span> es tu estimación de la probabilidad verdadera del evento (por ejemplo, 70%).</p>
+                    <div className="p-6 bg-white/5 rounded-2xl border border-white/10">
+                      <p className="text-sm italic mb-2">En este caso:</p>
+                      <p className="text-xl font-bold text-brand-emerald">Edge = 70% − 58% = +12 puntos</p>
                     </div>
-                    
-                    <div className="text-2xl font-semibold text-text-primary py-4 border-y border-border-subtle">
-                      Edge = P_estimada − P_mercado
-                    </div>
-
-                    <div className="space-y-4 pt-4">
-                      <span className="text-text-tertiary uppercase text-xs tracking-widest block mb-2">Criterios de ejecución:</span>
-                      {[
-                        '|Edge| > 8 puntos',
-                        'Liquidez > $5.000',
-                        'Resolución > 7 días',
-                        'Convicción >= 6/10'
-                      ].map((c, i) => (
-                        <div key={i} className="flex items-center gap-3 text-text-secondary">
-                          <div className="w-1.5 h-1.5 rounded-full bg-brand-indigo" />
-                          <span>{c}</span>
-                        </div>
-                      ))}
-                    </div>
+                    <p>Un edge <span className="text-brand-emerald font-bold">positivo</span> significa que el mercado está infravalorando el evento. Un edge <span className="text-brand-indigo font-bold">negativo</span> significa que el mercado lo está sobrevalorando.</p>
+                    <p className="text-sm bg-brand-indigo/10 text-brand-indigo p-4 rounded-xl font-medium border-l-4 border-brand-indigo">
+                      La decisión de actuar solo se toma si el edge supera los <span className="font-bold underline">8 puntos</span> en valor absoluto. Por debajo de eso, la incertidumbre puede tragarse la diferencia.
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
-              <div className="order-2 lg:order-1 animate-on-scroll h-[400px]">
-                <Scatter data={calibrateData} options={calibrateOptions} />
-              </div>
-              <div className="order-1 lg:order-2 animate-on-scroll">
-                 <span className="text-brand-indigo font-mono text-sm block mb-4">Métrica Maestra</span>
-                <h3 className="text-2xl font-semibold mb-6">Calibración y Brier Score</h3>
-                <p className="text-text-secondary mb-6 leading-relaxed">
-                  La transparencia es nuestro producto. Un buen analista no es el que siempre acierta, sino el que está bien calibrado: si decimos que algo ocurrirá el 70% de las veces, debe ocurrir exactamente 7 de cada 10 veces.
-                </p>
-                <div className="bg-bg-card border border-border-subtle p-6 rounded-xl space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-brand-emerald/10 flex items-center justify-center text-brand-emerald">
-                      <TrendingUp size={20} />
+            <div className="space-y-32">
+              <div>
+                <h3 className="text-2xl font-bold mb-12 flex items-center gap-4">
+                  <span className="w-10 h-10 rounded-full bg-brand-indigo flex items-center justify-center text-white text-lg">◆</span>
+                  Cómo se construye P_real: el proceso bayesiano
+                </h3>
+                <div className="grid grid-cols-1 gap-12">
+                  {[
+                    {
+                      step: "01",
+                      title: "Base rate: la pregunta que nadie hace",
+                      desc: "Antes de cualquier opinión, te preguntas: ¿con qué frecuencia ocurren eventos similares históricamente?",
+                      example: "Si el mercado pregunta si un presidente renunciará, analizamos cuántos presidentes en situaciones similares renunciaron realmente en los últimos 50 años. Si es 15%, esa es tu base rate. Es el ancla."
+                    },
+                    {
+                      step: "02",
+                      title: "Actualización bayesiana: pesar la información nueva",
+                      desc: "Cada pieza de información solo puede ajustar tu base rate en una magnitud que puedes justificar explícitamente.",
+                      example: "Diferente a una opinión normal, obligas a ser explícito: 'Dado el evento X, la probabilidad sube Z puntos'. Se evita empezar por la conclusión."
+                    },
+                    {
+                      step: "03",
+                      title: "Detección del sesgo de mercado",
+                      desc: "El precio de Polymarket no es neutral; tiene sesgos comunes que detectamos para predecir errores.",
+                      example: "Availability bias (sobreestima lo dramático), Recency bias (exceso de peso a lo reciente) y Narrative bias (historias convincentes vs realidad estadística)."
+                    },
+                    {
+                      step: "04",
+                      title: "Construcción del intervalo de confianza",
+                      desc: "Tu estimación final no es un número, sino un rango: [P_mínima, P_central, P_máxima].",
+                      example: "Si el rango es estrecho (ej. 8 puntos), el análisis es sólido. Si el rango es amplio (ej. 30 puntos), es incertidumbre disfrazada de oportunidad. Solo actuamos con intervalos estrechos."
+                    }
+                  ].map((item, idx) => (
+                    <div key={idx} className="relative pl-12 group">
+                      <div className="absolute left-0 top-0 text-brand-indigo/30 font-mono font-bold text-4xl -translate-x-1/2 group-hover:text-brand-indigo transition-colors">{item.step}</div>
+                      <div className="border-l border-border-subtle pl-12 pb-2">
+                        <h4 className="text-xl font-bold mb-4">{item.title}</h4>
+                        <p className="text-text-secondary mb-6 leading-relaxed">{item.desc}</p>
+                        <div className="bg-white/5 p-5 rounded-2xl border border-white/10 text-sm italic text-text-tertiary">
+                          <span className="text-brand-indigo font-bold not-italic">Ejemplo: </span>{item.example}
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <span className="font-semibold block">Superávit de Calibración</span>
-                      <span className="text-text-tertiary text-sm">Nuestro Brier Score está sistemáticamente por debajo del mercado.</span>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-2xl font-bold mb-12">Las reglas de decisión</h3>
+                <div className="bg-bg-card border border-border-subtle rounded-3xl overflow-hidden shadow-xl">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="bg-white/5 border-b border-border-subtle">
+                        <th className="px-8 py-4 text-xs font-bold uppercase tracking-widest text-text-tertiary">Filtro</th>
+                        <th className="px-8 py-4 text-xs font-bold uppercase tracking-widest text-text-tertiary">Umbral</th>
+                        <th className="px-8 py-4 text-xs font-bold uppercase tracking-widest text-text-tertiary">Por qué</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border-subtle">
+                      <tr>
+                        <td className="px-8 py-6 font-bold text-brand-indigo">Magnitud del Edge</td>
+                        <td className="px-8 py-6 font-mono font-bold text-text-primary">{">"} 8 puntos</td>
+                        <td className="px-8 py-6 text-sm text-text-secondary">Evita que el error de estimación coma la ventaja.</td>
+                      </tr>
+                      <tr>
+                        <td className="px-8 py-6 font-bold text-brand-indigo">Liquidez del Mercado</td>
+                        <td className="px-8 py-6 font-mono font-bold text-text-primary">{">"} $5.000</td>
+                        <td className="px-8 py-6 text-sm text-text-secondary">Evita manipulación y spreads altos en mercados pequeños.</td>
+                      </tr>
+                      <tr>
+                        <td className="px-8 py-6 font-bold text-brand-indigo">Tiempo Resolución</td>
+                        <td className="px-8 py-6 font-mono font-bold text-text-primary">{">"} 7 días</td>
+                        <td className="px-8 py-6 text-sm text-text-secondary">Con menos tiempo, el precio ya descuenta casi todo.</td>
+                      </tr>
+                      <tr>
+                        <td className="px-8 py-6 font-bold text-brand-indigo">Nivel de Convicción</td>
+                        <td className="px-8 py-6 font-mono font-bold text-text-primary">≥ 6/10</td>
+                        <td className="px-8 py-6 text-sm text-text-secondary">Justificación sólida audible para publicar.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                <div className="space-y-6">
+                  <h3 className="text-2xl font-bold">Métrica de calibración: Brier Score</h3>
+                  <p className="text-text-secondary leading-relaxed">
+                    El sistema se mide con el <span className="text-text-primary font-bold">Brier Score</span>, la única métrica que importa para validar si somos mejores que el mercado.
+                  </p>
+                  <div className="bg-bg-card border border-border-subtle p-6 rounded-2xl font-mono text-center">
+                    <p className="text-xs text-text-tertiary mb-3 uppercase tracking-widest">Fórmula de validación</p>
+                    <p className="text-2xl font-bold text-text-primary">BS = (1/N) × Σ (P_estimada − Resultado)²</p>
+                  </div>
+                  <p className="text-sm text-text-tertiary leading-relaxed">
+                    Un score de 0.0 es perfección. 0.25 es azar. Cualquier valor <span className="text-brand-emerald font-bold">por debajo de 0.20</span> en eventos complejos indica una ventaja demostrable sobre Polymarket.
+                  </p>
+                </div>
+
+                <div className="bg-red-500/5 border border-red-500/20 p-8 rounded-3xl self-start">
+                  <h3 className="text-xl font-bold text-red-500 mb-6 flex items-center gap-2">
+                    <AlertCircle size={20} /> El error fatal
+                  </h3>
+                  <p className="text-sm text-text-secondary leading-relaxed mb-6">
+                    El error más peligroso es hacer los pasos en orden incorrecto: leer noticias primero, formar una opinión y luego buscar la base rate. Eso es <span className="font-bold underline">construir justificaciones</span>, no estimar probabilidades.
+                  </p>
+                  <div className="flex flex-col gap-2 font-mono text-[10px] items-center text-text-tertiary">
+                    <span>ORDEN CORRECTO:</span>
+                    <div className="flex items-center gap-2 text-red-500 font-bold">
+                       BASE RATE ➔ DATOS ➔ SESGOS ➔ DECISIÓN
                     </div>
                   </div>
                 </div>
@@ -1256,34 +1891,6 @@ export default function App() {
                 <span className="text-text-tertiary text-[10px] uppercase font-semibold">Edge Avg Aciertos</span>
                 <span className="font-mono font-bold text-brand-indigo">+11.2 pts</span>
               </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Section 6: Academy */}
-        <section id="academia" className="py-32 px-6 bg-bg-base relative overflow-hidden">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[1px] bg-gradient-to-r from-transparent via-border-subtle to-transparent" />
-          <div className="max-w-7xl mx-auto relative z-10">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-16 gap-6 animate-on-scroll">
-              <div>
-                <span className="text-brand-indigo font-mono text-sm block mb-4 uppercase tracking-[0.2em]">Cursos y Formación</span>
-                <h2 className="text-4xl font-semibold mb-4 leading-tight">Academia de Probabilidad</h2>
-                <p className="text-text-secondary max-w-xl">
-                  Artículos educativos para dominar el arte del forecasting y la gestión sistemática de ineficiencias de mercado.
-                </p>
-              </div>
-              <button 
-                onClick={() => document.getElementById('academia')?.scrollIntoView({ behavior: 'smooth' })}
-                className="text-brand-indigo font-bold text-sm hover:underline transition-all"
-              >
-                Explorar todos los cursos →
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-on-scroll">
-              {academyArticles.map(article => (
-                <AcademyCard key={article.id} article={article} onRead={handleReadArticle} />
-              ))}
             </div>
           </div>
         </section>
@@ -1578,7 +2185,34 @@ export default function App() {
         {selectedPlan && (
           <CheckoutPage 
             plan={selectedPlan} 
+            user={currentUser}
+            onLogin={handleLogin}
+            showToast={showToast}
             onBack={() => setView('landing')} 
+          />
+        )}
+      </motion.div>
+    ) : view === 'analysis' ? (
+      <motion.div
+        key="analysis"
+        initial={{ opacity: 0, scale: 0.98 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 1.02 }}
+      >
+        <AnalysisPage onBack={() => setView('landing')} />
+      </motion.div>
+    ) : view === 'dashboard' ? (
+      <motion.div
+        key="dashboard"
+        initial={{ opacity: 0, scale: 0.98 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 1.02 }}
+      >
+        {currentUser && (
+          <UserDashboard 
+            user={currentUser} 
+            onBack={() => setView('landing')} 
+            showToast={showToast}
           />
         )}
       </motion.div>
@@ -1600,7 +2234,8 @@ export default function App() {
   </AnimatePresence>
 </main>
 
-      <footer className="bg-[#07070C] pt-24 pb-12 px-6 border-t border-border-subtle">
+      {view !== 'dashboard' && (
+        <footer className="bg-[#07070C] pt-24 pb-12 px-6 border-t border-border-subtle">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-12 mb-20 text-sm">
             <div className="col-span-2 md:col-span-1">
@@ -1618,12 +2253,25 @@ export default function App() {
               <h5 className="text-text-primary font-bold uppercase tracking-widest text-[11px] mb-6">Producto</h5>
               <ul className="space-y-4 text-text-secondary">
                 {[
-                  { name: 'Análisis', id: 'analisis' },
+                  { name: 'Análisis', id: 'analysis' },
                   { name: 'Track Record', id: 'track-record' },
                   { name: 'Metodología', id: 'metodologia' },
                   { name: 'Guía Operativa', id: 'guia' }
                 ].map(l => (
-                  <li key={l.name}><a href={`#${l.id}`} className="hover:text-brand-indigo transition-colors">{l.name}</a></li>
+                  <li key={l.name}>
+                    <button 
+                      onClick={() => {
+                        if (l.id === 'analysis') setView('analysis');
+                        else {
+                          setView('landing');
+                          setTimeout(() => document.getElementById(l.id)?.scrollIntoView({ behavior: 'smooth' }), 50);
+                        }
+                      }} 
+                      className="hover:text-brand-indigo transition-colors"
+                    >
+                      {l.name}
+                    </button>
+                  </li>
                 ))}
               </ul>
             </div>
@@ -1659,6 +2307,7 @@ export default function App() {
           </div>
         </div>
       </footer>
+      )}
     </div>
   );
 }

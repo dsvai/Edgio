@@ -1,0 +1,67 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Primitives
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function isVerified() { return request.auth.token.email_verified == true; }
+    function isAdmin() { return isSignedIn() && request.auth.token.email == "dani.sanchez.vila@gmail.com"; }
+
+    // User Entity Validation
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'subscriptionStatus', 'points'])
+        && data.keys().size() >= 4
+        && data.uid == request.auth.uid
+        && data.email is string
+        && data.subscriptionStatus in ['free', 'pro', 'annual']
+        && data.points is number
+        && (!('createdAt' in data) || data.createdAt is timestamp)
+        && (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    // Analysis Entity Validation
+    function isValidAnalysis(data) {
+      return data.keys().hasAll(['title', 'category', 'pMarket', 'pReal', 'edge', 'content', 'status'])
+        && data.title is string
+        && data.pMarket is number
+        && data.pReal is number
+        && data.edge is number
+        && data.content is string
+        && data.status in ['active', 'resolved'];
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) 
+        && isValidUser(incoming())
+        && incoming().points == 100 // Welcome points
+        && incoming().subscriptionStatus == 'free'
+        && incoming().createdAt == request.time;
+      
+      allow update: if isOwner(userId)
+        && isValidUser(incoming())
+        && incoming().uid == existing().uid
+        && incoming().email == existing().email
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['subscriptionStatus', 'updatedAt']) ||
+          (incoming().points == existing().points)
+        );
+    }
+
+    match /analysis/{analysisId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+  }
+}

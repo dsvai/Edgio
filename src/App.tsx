@@ -2351,16 +2351,16 @@ export default function App() {
               <div className="bg-bg-card border border-border-subtle p-8 rounded-2xl flex flex-col animate-on-scroll">
                 <h4 className="text-xl font-semibold mb-2">Lector</h4>
                 <div className="mb-6">
-                  <span className="text-3xl font-bold">Gratis</span>
+                  <span className="text-3xl font-bold">0€</span>
                 </div>
-                <p className="text-text-secondary text-sm mb-8">Para entender el sistema antes de comprometerte.</p>
+                <p className="text-text-secondary text-sm mb-8">Para entender el sistema y verificar nuestro track record antes de saltar al mercado.</p>
                 <div className="space-y-4 mb-10 flex-grow">
                   {[
-                    'Canal Telegram público',
                     '1 análisis semanal gratuito',
-                    'Resumen semanal de mercados',
-                    'Metodología base pública',
-                    'Track record histórico público'
+                    'Acceso al Track Record completo',
+                    'Newsletter dominical de mercados',
+                    'Fórmulas de edge públicas',
+                    'Canal Telegram público'
                   ].map(f => (
                     <div key={f} className="flex gap-3 items-center text-sm">
                       <CheckCircle2 size={16} className="text-text-tertiary shrink-0" />
@@ -2372,9 +2372,9 @@ export default function App() {
                   onClick={() => handleSubscribePlan({ 
                     id: 'free', 
                     name: 'Lector', 
-                    price: 'Gratis', 
+                    price: '0€', 
                     period: '', 
-                    features: ['Canal Telegram público', '1 análisis semanal gratuito', 'Resumen semanal de mercados', 'Metodología base pública', 'Track record histórico público'] 
+                    features: ['1 análisis semanal gratuito', 'Acceso al Track Record completo', 'Newsletter dominical de mercados', 'Fórmulas de edge públicas', 'Canal Telegram público'] 
                   })}
                   className="w-full py-3 border border-border-subtle rounded-xl font-semibold hover:bg-white/5 transition-colors"
                 >
@@ -2385,27 +2385,26 @@ export default function App() {
               {/* Pro */}
               <div className="bg-bg-card border-2 border-brand-indigo p-8 rounded-2xl flex flex-col relative shadow-[0_0_40px_rgba(99,102,241,0.15)] animate-on-scroll">
                 <div className="absolute top-0 right-8 -translate-y-1/2 bg-brand-indigo text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest">
-                  Más popular
+                  Mejor Valor
                 </div>
-                <h4 className="text-xl font-semibold mb-2">Analista</h4>
+                <h4 className="text-xl font-semibold mb-2">Analista Pro</h4>
                 <div className="mb-6 flex items-baseline gap-2">
-                  <span className="text-4xl font-bold text-text-primary">19€</span>
-                  <span className="text-text-tertiary line-through text-lg">29€</span>
+                  <span className="text-4xl font-bold text-text-primary">49€</span>
+                  <span className="text-text-tertiary line-through text-lg">79€</span>
                   <span className="text-text-tertiary text-sm">/ mes</span>
                 </div>
-                <p className="text-text-secondary text-sm mb-8">El sistema completo para adelantarse a los movimientos del mercado.</p>
+                <p className="text-text-secondary text-sm mb-8">Información privilegiada para quienes operan con convicción y buscan el máximo ROI.</p>
                 <div className="space-y-4 mb-10 flex-grow">
                    <div className="flex gap-3 items-center text-sm font-semibold text-brand-indigo italic">
                     <Zap size={16} className="shrink-0" />
                     <span>Todo lo de Lector y además:</span>
                   </div>
                   {[
-                    'Grupo Telegram privado exclusivo',
-                    '4-5 análisis semanales completos',
+                    'Acceso total: 4-5 análisis/semana',
+                    'Alertas inmediatas en Telegram',
                     'Intervalos de confianza detallados',
-                    'Alertas de movimientos anómalos',
-                    'Prompts de análisis avanzado',
-                    'Track record con métricas en vivo',
+                    'Alertas de "Smart Money" anómalo',
+                    'Acceso a la API de señales (Beta)',
                     'Sesión de calibración mensual',
                     'Soporte directo prioritario'
                   ].map(f => (
@@ -2418,10 +2417,10 @@ export default function App() {
                 <button 
                   onClick={() => handleSubscribePlan({ 
                     id: 'pro', 
-                    name: 'Analista', 
-                    price: '19€', 
+                    name: 'Analista Pro', 
+                    price: '49€', 
                     period: 'mes', 
-                    features: ['Grupo Telegram privado exclusivo', '4-5 análisis semanales completos', 'Intervalos de confianza detallados', 'Alertas de movimientos anómalos', 'Prompts de análisis avanzado', 'Track record con métricas en vivo', 'Sesión de calibración mensual', 'Soporte directo prioritario'] 
+                    features: ['Acceso total: 4-5 análisis/semana', 'Alertas inmediatas en Telegram', 'Intervalos de confianza detallados', 'Alertas de "Smart Money" anómalo', 'Acceso a la API de señales (Beta)', 'Sesión de calibración mensual', 'Soporte directo prioritario'] 
                   })}
                   className="w-full py-4 bg-brand-indigo text-white rounded-xl font-bold hover:brightness-110 shadow-lg shadow-brand-indigo/20 transition-all"
                 >
@@ -2431,23 +2430,26 @@ export default function App() {
 
               {/* Annual */}
               <div className="bg-bg-card border border-brand-emerald p-8 rounded-2xl flex flex-col animate-on-scroll">
-                <h4 className="text-xl font-semibold mb-2">Sistema</h4>
+                <h4 className="text-xl font-semibold mb-2">Elite Anual</h4>
                 <div className="mb-6 flex flex-col">
-                  <span className="text-3xl font-bold text-text-primary">159€ <span className="text-xl font-normal text-text-tertiary">/ año</span></span>
-                  <span className="text-brand-emerald text-[11px] font-bold mt-1 uppercase tracking-wider">Ahorras 69€</span>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-bold text-text-primary">399€</span>
+                    <span className="text-xl font-normal text-text-tertiary">/ año</span>
+                  </div>
+                  <span className="text-brand-emerald text-[11px] font-bold mt-1 uppercase tracking-wider">Ahorras 189€ al año</span>
                 </div>
-                <p className="text-text-secondary text-sm mb-8">Para quien entiende que la ventaja se construye con el tiempo.</p>
+                <p className="text-text-secondary text-sm mb-8">Para instituciones y ballenas que entienden que el edge se construye a largo plazo.</p>
                 <div className="space-y-4 mb-10 flex-grow">
                    <div className="flex gap-3 items-center text-sm font-semibold text-brand-emerald italic">
                     <Activity size={16} className="shrink-0" />
                     <span>Todo lo Pro y además:</span>
                   </div>
                   {[
-                    'Curso de metodología completo (QA)',
-                    'Acceso al historial de 24 meses',
-                    'Prioridad en nuevas funciones',
-                    'Exportación de datos premium',
-                    'Consultoría trimestral personalizada'
+                    'Prioridad en alertas "Flash"',
+                    'Canal Elite VIP (Q&A directo)',
+                    'Informes de mercado mensuales',
+                    'Consultoría técnica por trimestre',
+                    'Exportación de datos brutos (RAW)'
                   ].map(f => (
                     <div key={f} className="flex gap-3 items-center text-sm">
                       <CheckCircle2 size={16} className="text-brand-emerald shrink-0" />
@@ -2458,14 +2460,14 @@ export default function App() {
                 <button 
                   onClick={() => handleSubscribePlan({ 
                     id: 'annual', 
-                    name: 'Sistema', 
-                    price: '159€', 
+                    name: 'Elite Anual', 
+                    price: '399€', 
                     period: 'año', 
-                    features: ['Curso de metodología completo (QA)', 'Acceso al historial de 24 meses', 'Prioridad en nuevas funciones', 'Exportación de datos premium', 'Consultoría trimestral personalizada'] 
+                    features: ['Prioridad en alertas "Flash"', 'Canal Elite VIP (Q&A directo)', 'Informes de mercado mensuales', 'Consultoría técnica por trimestre', 'Exportación de datos brutos (RAW)'] 
                   })}
                   className="w-full py-3 border border-brand-emerald text-brand-emerald rounded-xl font-semibold hover:bg-brand-emerald/5 transition-colors"
                 >
-                  Acceso anual →
+                  Obtener ventaja anual →
                 </button>
               </div>
             </div>

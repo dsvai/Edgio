@@ -39,6 +39,22 @@
         "imageUrl": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       }
+    },
+    "TrackRecordEntry": {
+      "title": "Track Record Entry",
+      "description": "A resolved prediction record",
+      "type": "object",
+      "properties": {
+        "event": { "type": "string" },
+        "date": { "type": "string" },
+        "ourEst": { "type": "number" },
+        "marketPrice": { "type": "number" },
+        "edge": { "type": "number" },
+        "resolution": { "type": "string" },
+        "resolutionTimestamp": { "type": "string", "format": "date-time" },
+        "outcome": { "type": "string" },
+        "correct": { "type": "boolean" }
+      }
     }
   },
   "firestore": {
@@ -49,6 +65,10 @@
     "/analysis/{analysisId}": {
       "schema": "Analysis",
       "description": "Collection of all market analyses"
+    },
+    "/trackRecord/{trackId}": {
+      "schema": "TrackRecordEntry",
+      "description": "Collection of all resolved prediction records"
     }
   }
 }

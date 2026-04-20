@@ -65,6 +65,8 @@ ChartJS.register(LinearScale, PointElement, LineElement, Tooltip, Legend, Scatte
 
 import ReactMarkdown from 'react-markdown';
 
+import { trackRecordData } from './data/trackRecordData';
+
 // --- Types ---
 interface Analysis {
   id: string;
@@ -116,254 +118,13 @@ interface Plan {
   features: string[];
 }
 
-const trackRecordData = [
-  {
-    id: 1,
-    evento: "¿Ganará Donald Trump las elecciones presidenciales de EE.UU. 2024?",
-    categoria: "Política",
-    fechaAnalisis: "2024-10-01",
-    diasAntes: 34,
-    estimacion: 58,
-    precioMercado: 49,
-    edge: 9,
-    resolucion: "2024-11-06",
-    resultado: "SÍ",
-    acierto: true,
-    conviccion: 7,
-    liquidez: 380000,
-    notas: "Base rate de incumbentes y candidatos previos. Mercado anclado a encuestas, no a modelos de estados clave."
-  },
-  {
-    id: 2,
-    evento: "¿Habrá recesión en EE.UU. antes de fin de 2024?",
-    categoria: "Macro",
-    fechaAnalisis: "2024-07-15",
-    diasAntes: 169,
-    estimacion: 18,
-    precioMercado: 28,
-    edge: -10,
-    resolucion: "2024-12-31",
-    resultado: "NO",
-    acierto: true,
-    conviccion: 8,
-    liquidez: 95000,
-    notas: "Mercado sobreestimaba probabilidad por datos de empleo retrasados. Indicadores adelantados apuntaban a aterrizaje suave."
-  },
-  {
-    id: 3,
-    evento: "¿Bajará la Fed los tipos de interés en septiembre 2024?",
-    categoria: "Macro",
-    fechaAnalisis: "2024-08-20",
-    diasAntes: 26,
-    estimacion: 82,
-    precioMercado: 67,
-    edge: 15,
-    resolucion: "2024-09-18",
-    resultado: "SÍ",
-    acierto: true,
-    conviccion: 8,
-    liquidez: 220000,
-    notas: "Jackson Hole fue señal clara. Mercado con recency bias de política restrictiva infravalorando el giro."
-  },
-  {
-    id: 4,
-    evento: "¿Llegará Bitcoin a 70.000$ antes del 1 de noviembre 2024?",
-    categoria: "Crypto",
-    fechaAnalisis: "2024-09-10",
-    diasAntes: 51,
-    estimacion: 35,
-    precioMercado: 44,
-    edge: -9,
-    resolucion: "2024-11-01",
-    resultado: "NO",
-    acierto: true,
-    conviccion: 6,
-    liquidez: 180000,
-    notas: "ETF flows positivos pero timing ajustado. El mercado sobreestimaba velocidad del rally pre-halving."
-  },
-  {
-    id: 5,
-    evento: "¿Ganará el Partido Laborista las elecciones generales del Reino Unido 2024?",
-    categoria: "Política",
-    fechaAnalisis: "2024-05-22",
-    diasAntes: 43,
-    estimacion: 91,
-    precioMercado: 79,
-    edge: 12,
-    resolucion: "2024-07-04",
-    resultado: "SÍ",
-    acierto: true,
-    conviccion: 9,
-    liquidez: 145000,
-    notas: "Encuestas consistentes, base rate de partidos incumbentes en ciclos de desgaste. Edge claro desde semanas antes."
-  },
-  {
-    id: 6,
-    evento: "¿Superará el S&P 500 los 5.500 puntos antes de julio 2024?",
-    categoria: "Mercados",
-    fechaAnalisis: "2024-04-05",
-    diasAntes: 86,
-    estimacion: 61,
-    precioMercado: 48,
-    edge: 13,
-    resolucion: "2024-06-30",
-    resultado: "SÍ",
-    acierto: true,
-    conviccion: 7,
-    liquidez: 78000,
-    notas: "Momentum de earnings Q1, inflación controlando. Mercado con descuento excesivo por riesgo electoral."
-  },
-  {
-    id: 7,
-    evento: "¿Presentará Elon Musk una oferta por TikTok antes de marzo 2025?",
-    categoria: "Tecnología",
-    fechaAnalisis: "2024-12-10",
-    diasAntes: 81,
-    estimacion: 22,
-    precioMercado: 31,
-    edge: -9,
-    resolucion: "2025-03-01",
-    resultado: "NO",
-    acierto: true,
-    conviccion: 6,
-    liquidez: 52000,
-    notas: "Narrative bias fuerte: medios cubrían mucho la historia pero señales reales de Musk apuntaban a no interés."
-  },
-  {
-    id: 8,
-    evento: "¿Habrá un shutdown del gobierno de EE.UU. en diciembre 2024?",
-    categoria: "Política",
-    fechaAnalisis: "2024-11-28",
-    diasAntes: 21,
-    estimacion: 38,
-    precioMercado: 29,
-    edge: 9,
-    resolucion: "2024-12-20",
-    resultado: "NO",
-    acierto: false,
-    conviccion: 6,
-    liquidez: 89000,
-    notas: "ERROR: Sobreponderamos la fragmentación del Congreso. El acuerdo de último minuto fue más probable de lo que estimamos. Ajuste: reducir peso de señales de ruido político a corto plazo."
-  },
-  {
-    id: 9,
-    evento: "¿Ganará Kamala Harris las elecciones presidenciales de EE.UU. 2024?",
-    categoria: "Política",
-    fechaAnalisis: "2024-10-01",
-    diasAntes: 34,
-    estimacion: 42,
-    precioMercado: 51,
-    edge: -9,
-    resolucion: "2024-11-06",
-    resultado: "NO",
-    acierto: true,
-    conviccion: 7,
-    liquidez: 390000,
-    notas: "Análisis espejo al de Trump. Mercado anclado a encuestas nacionales ignorando estructura del Electoral College."
-  },
-  {
-    id: 10,
-    evento: "¿Superará Ethereum los 4.000$ antes de fin de 2024?",
-    categoria: "Crypto",
-    fechaAnalisis: "2024-10-20",
-    diasAntes: 72,
-    estimacion: 44,
-    precioMercado: 38,
-    edge: 6,
-    resolucion: "2024-12-31",
-    resultado: "NO",
-    acierto: false,
-    conviccion: 5,
-    liquidez: 92000,
-    notas: "ERROR: Edge insuficiente (6 pts, por debajo del umbral de 8). No debimos publicar este análisis con convicción. La lección: respetar el umbral de edge mínimo sin excepciones."
-  },
-  {
-    id: 11,
-    evento: "¿Habrá elecciones anticipadas en Francia antes de marzo 2025?",
-    categoria: "Política",
-    fechaAnalisis: "2024-09-01",
-    diasAntes: 210,
-    estimacion: 28,
-    precioMercado: 41,
-    edge: -13,
-    resolucion: "2025-03-31",
-    resultado: "NO",
-    acierto: true,
-    conviccion: 7,
-    liquidez: 38000,
-    notas: "Mercado sobreestimaba inestabilidad. Base rate de gobiernos europeos en minoría que completan mandato es alta."
-  },
-  {
-    id: 12,
-    evento: "¿Bajará la Fed los tipos en noviembre 2024?",
-    categoria: "Macro",
-    fechaAnalisis: "2024-10-10",
-    diasAntes: 28,
-    estimacion: 89,
-    precioMercado: 78,
-    edge: 11,
-    resolucion: "2024-11-07",
-    resultado: "SÍ",
-    acierto: true,
-    conviccion: 9,
-    liquidez: 198000,
-    notas: "Dos bajadas consecutivas con datos de empleo debilitándose. Señal casi telegráfica de Powell en octubre."
-  },
-  {
-    id: 13,
-    evento: "¿Llegará Bitcoin a 100.000$ antes de fin de 2024?",
-    categoria: "Crypto",
-    fechaAnalisis: "2024-11-10",
-    diasAntes: 51,
-    estimacion: 52,
-    precioMercado: 41,
-    edge: 11,
-    resolucion: "2024-12-31",
-    resultado: "SÍ",
-    acierto: true,
-    conviccion: 7,
-    liquidez: 420000,
-    notas: "Post-elecciones Trump, ETF flows récord, halving con 7 meses de antelación. Mercado aún con recency bias bajista."
-  },
-  {
-    id: 14,
-    evento: "¿Renunciará Trudeau como primer ministro de Canadá antes de febrero 2025?",
-    categoria: "Política",
-    fechaAnalisis: "2024-12-15",
-    diasAntes: 47,
-    estimacion: 71,
-    precioMercado: 58,
-    edge: 13,
-    resolucion: "2025-01-06",
-    resultado: "SÍ",
-    acierto: true,
-    conviccion: 8,
-    liquidez: 67000,
-    notas: "Presión interna del partido documentada. Base rate de líderes con aprobación <25% que sobreviven 6 meses: muy baja."
-  },
-  {
-    id: 15,
-    evento: "¿Superará el oro los 2.800$/oz antes de fin de 2024?",
-    categoria: "Mercados",
-    fechaAnalisis: "2024-10-25",
-    diasAntes: 67,
-    estimacion: 41,
-    precioMercado: 52,
-    edge: -11,
-    resolucion: "2024-12-31",
-    resultado: "NO",
-    acierto: true,
-    conviccion: 6,
-    liquidez: 44000,
-    notas: "Dólar fuerte post-elecciones Trump. Mercado sobreestimaba momentum del oro ignorando correlación inversa con DXY."
-  }
-];
-
 const TrackRecordSection = () => {
   const [filter, setFilter] = useState('Todos');
   const [successFilter, setSuccessFilter] = useState<null | boolean>(null); // null: todos, true: aciertos, false: errores
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [showAll, setShowAll] = useState(false);
+  const INITIAL_VISIBLE_COUNT = 8;
 
   const filteredData = useMemo(() => {
     let data = [...trackRecordData];
@@ -418,6 +179,8 @@ const TrackRecordSection = () => {
     }
     setSortConfig({ key, direction });
   };
+
+  const displayedData = showAll ? filteredData : filteredData.slice(0, INITIAL_VISIBLE_COUNT);
 
   const downloadCSV = () => {
     const headers = ["ID", "Evento", "Categoria", "Fecha Analisis", "Dias Antes", "Estimacion", "Precio Mercado", "Edge", "Resolucion", "Resultado", "Acierto", "Conviccion", "Liquidez", "Notas"];
@@ -560,7 +323,7 @@ const TrackRecordSection = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredData.map((item, idx) => (
+              {displayedData.map((item, idx) => (
                 <React.Fragment key={item.id}>
                   <tr 
                     onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
@@ -639,7 +402,7 @@ const TrackRecordSection = () => {
 
         {/* Mobile Cards */}
         <div className="md:hidden space-y-4">
-          {filteredData.map(item => (
+          {displayedData.map(item => (
             <motion.div 
               key={item.id}
               onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
@@ -703,6 +466,22 @@ const TrackRecordSection = () => {
             </motion.div>
           ))}
         </div>
+
+        {/* Show More Button */}
+        {filteredData.length > INITIAL_VISIBLE_COUNT && (
+          <div className="mt-8 flex justify-center">
+            <button 
+              onClick={() => setShowAll(!showAll)}
+              className="flex items-center gap-2 px-8 py-4 bg-brand-indigo/10 border border-brand-indigo/30 hover:bg-brand-indigo/20 text-brand-indigo rounded-2xl font-bold transition-all group"
+            >
+              {showAll ? (
+                <>Ver menos <ChevronDown size={20} className="rotate-180 transition-transform group-hover:-translate-y-0.5" /></>
+              ) : (
+                <>Cargar más operaciones (+{filteredData.length - INITIAL_VISIBLE_COUNT}) <ChevronDown size={20} className="transition-transform group-hover:translate-y-0.5" /></>
+              )}
+            </button>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="mt-12 flex flex-col md:flex-row items-center justify-between gap-6 border-t border-border-subtle pt-8">

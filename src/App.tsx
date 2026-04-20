@@ -34,7 +34,11 @@ import {
   History,
   Settings,
   User,
-  LogOut
+  LogOut,
+  Upload,
+  Image as ImageIcon,
+  Loader2,
+  Send
 } from 'lucide-react';
 import { motion, AnimatePresence, useScroll, useSpring } from 'framer-motion';
 import {
@@ -47,9 +51,10 @@ import {
   ScatterController
 } from 'chart.js';
 import { Scatter } from 'react-chartjs-2';
-import { auth, googleProvider, syncUserProfile, UserProfile, db } from './lib/firebase';
+import { auth, googleProvider, syncUserProfile, UserProfile, db, storage } from './lib/firebase';
 import { signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, onSnapshot, updateDoc, serverTimestamp, collection, query, orderBy } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, serverTimestamp, collection, query, orderBy, setDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 ChartJS.register(LinearScale, PointElement, LineElement, Tooltip, Legend, ScatterController);
 
@@ -1187,16 +1192,63 @@ const AnalysisDetailPage = ({ analysis, currentUser, onBack, onSubscribe }: {
   );
 };
 
-const AdminPanel = ({ analyses, onBack, logoText, setLogoText, logoIcon, setLogoIcon }: { 
+const AdminPanel = ({ 
+  analyses, 
+  onBack, 
+  logoText, setLogoText, 
+  logoIcon, setLogoIcon,
+  logoUrl, setLogoUrl,
+  faviconUrl, setFaviconUrl
+}: { 
   analyses: Analysis[], 
   onBack: () => void,
   logoText: string,
   setLogoText: (t: string) => void,
   logoIcon: string,
-  setLogoIcon: (i: string) => void
+  setLogoIcon: (i: string) => void,
+  logoUrl: string | null,
+  setLogoUrl: (u: string | null) => void,
+  faviconUrl: string | null,
+  setFaviconUrl: (u: string | null) => void
 }) => {
   const [activeTab, setActiveTab] = useState<'analyses' | 'settings'>('analyses');
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [isUploadingFavicon, setIsUploadingFavicon] = useState(false);
   const [editingAnalysis, setEditingAnalysis] = useState<Partial<Analysis> | null>(null);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'favicon') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (type === 'logo') setIsUploadingLogo(true);
+    else setIsUploadingFavicon(true);
+
+    try {
+      const storageRef = ref(storage, `branding/${type}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+
+      const brandingRef = doc(db, 'config', 'branding');
+      await setDoc(brandingRef, { [type === 'logo' ? 'logoUrl' : 'faviconUrl']: url }, { merge: true });
+      
+      if (type === 'logo') setLogoUrl(url);
+      else setFaviconUrl(url);
+    } catch (error) {
+      console.error("Error uploading file:", error);
+    } finally {
+      if (type === 'logo') setIsUploadingLogo(false);
+      else setIsUploadingFavicon(false);
+    }
+  };
+
+  const saveTextBranding = async () => {
+    try {
+      const brandingRef = doc(db, 'config', 'branding');
+      await setDoc(brandingRef, { logoText, logoIcon }, { merge: true });
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const handleDelete = async (id: string) => {
     if (confirm('¿Seguro que quieres borrar este análisis?')) {
@@ -1408,32 +1460,112 @@ const AdminPanel = ({ analyses, onBack, logoText, setLogoText, logoIcon, setLogo
         <div className="max-w-xl space-y-12">
           <div>
             <h3 className="text-xl font-bold mb-8">Personalización de Marca</h3>
-            <div className="space-y-6">
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-1 block">Texto del Logotipo</label>
-                <input 
-                  type="text" 
-                  value={logoText}
-                  onChange={e => setLogoText(e.target.value)}
-                  className="w-full bg-bg-card border border-border-subtle rounded-xl px-4 py-3 text-sm focus:border-brand-indigo outline-none"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-1 block">Icono (Solo un carácter o emoji)</label>
-                <input 
-                  type="text" 
-                  value={logoIcon}
-                  onChange={e => setLogoIcon(e.target.value)}
-                  className="w-full bg-bg-card border border-border-subtle rounded-xl px-4 py-3 text-sm focus:border-brand-indigo outline-none"
-                />
-              </div>
-              <div className="p-6 bg-brand-indigo/5 border border-brand-indigo/20 rounded-2xl flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-brand-indigo flex items-center justify-center text-white text-xl font-bold shadow-lg">
-                  {logoIcon}
+            <div className="space-y-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-3 block">Texto del Logotipo</label>
+                  <div className="flex gap-2">
+                    <input 
+                      type="text" 
+                      value={logoText}
+                      onChange={e => setLogoText(e.target.value)}
+                      className="flex-1 bg-bg-card border border-border-subtle rounded-xl px-4 py-3 text-sm focus:border-brand-indigo outline-none"
+                    />
+                    <button 
+                      onClick={saveTextBranding}
+                      className="bg-white/5 border border-border-subtle text-text-primary px-4 py-3 rounded-xl hover:bg-white/10 transition-all text-xs font-bold"
+                    >
+                      Guardar
+                    </button>
+                  </div>
                 </div>
                 <div>
-                  <p className="font-bold text-text-primary">{logoText}</p>
-                  <p className="text-[10px] text-text-tertiary tracking-widest uppercase">Vista Previa</p>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-3 block">Icono (Fallback)</label>
+                  <input 
+                    type="text" 
+                    value={logoIcon}
+                    onChange={e => setLogoIcon(e.target.value)}
+                    className="w-full bg-bg-card border border-border-subtle rounded-xl px-4 py-3 text-sm focus:border-brand-indigo outline-none"
+                    maxLength={1}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-3 block">Imagen del Logotipo</label>
+                  <div className="relative group overflow-hidden bg-bg-card border-2 border-dashed border-border-subtle rounded-2xl p-8 flex flex-col items-center justify-center transition-all hover:border-brand-indigo group">
+                    {logoUrl ? (
+                      <div className="relative">
+                        <img src={logoUrl} alt="Logo" className="h-12 w-auto object-contain mb-4" />
+                        <button 
+                          onClick={async () => {
+                            const brandingRef = doc(db, 'config', 'branding');
+                            await setDoc(brandingRef, { logoUrl: null }, { merge: true });
+                            setLogoUrl(null);
+                          }}
+                          className="absolute -top-2 -right-2 bg-brand-danger text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ) : (
+                      <ImageIcon size={32} className="text-text-tertiary mb-4 opacity-50" />
+                    )}
+                    
+                    <label className="cursor-pointer">
+                      <span className="bg-brand-indigo text-white px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">
+                        {isUploadingLogo ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+                        {logoUrl ? 'Cambiar Imagen' : 'Subir Imagen'}
+                      </span>
+                      <input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(e, 'logo')} />
+                    </label>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-3 block">Favicon (32x32px)</label>
+                  <div className="relative group overflow-hidden bg-bg-card border-2 border-dashed border-border-subtle rounded-2xl p-8 flex flex-col items-center justify-center transition-all hover:border-brand-indigo">
+                    {faviconUrl ? (
+                      <div className="relative">
+                        <img src={faviconUrl} alt="Favicon" className="w-8 h-8 object-contain mb-4" />
+                        <button 
+                          onClick={async () => {
+                            const brandingRef = doc(db, 'config', 'branding');
+                            await setDoc(brandingRef, { faviconUrl: null }, { merge: true });
+                            setFaviconUrl(null);
+                          }}
+                          className="absolute -top-2 -right-2 bg-brand-danger text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ) : (
+                      <Activity size={32} className="text-text-tertiary mb-4 opacity-50" />
+                    )}
+                    
+                    <label className="cursor-pointer">
+                      <span className="bg-brand-indigo text-white px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">
+                        {isUploadingFavicon ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+                        {faviconUrl ? 'Cambiar Favicon' : 'Subir Favicon'}
+                      </span>
+                      <input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(e, 'favicon')} />
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 bg-brand-indigo/5 border border-brand-indigo/20 rounded-2xl flex items-center gap-6">
+                <div className="w-16 h-16 rounded-2xl bg-brand-indigo flex items-center justify-center text-white text-2xl font-bold shadow-xl overflow-hidden">
+                  {logoUrl ? <img src={logoUrl} className="w-full h-full object-contain" /> : logoIcon}
+                </div>
+                <div>
+                  <p className="font-bold text-xl text-text-primary">{logoText}</p>
+                  <p className="text-[10px] text-text-tertiary tracking-widest uppercase mb-2">Vista Previa del Logotipo</p>
+                  <div className="flex items-center gap-2 text-[10px] text-text-tertiary font-mono">
+                    <History size={12} />
+                    Sincronización con la nube activa
+                  </div>
                 </div>
               </div>
             </div>
@@ -1501,6 +1633,8 @@ export default function App() {
   const [analyses, setAnalyses] = useState<Analysis[]>([]);
   const [logoText, setLogoText] = useState('Edgio');
   const [logoIcon, setLogoIcon] = useState('◆');
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [faviconUrl, setFaviconUrl] = useState<string | null>(null);
   
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, {
@@ -1517,6 +1651,33 @@ export default function App() {
     });
     return () => unsubscribe();
   }, []);
+
+  // Persistent Branding Effect
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'config', 'branding'), (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        if (data.logoText) setLogoText(data.logoText);
+        if (data.logoIcon) setLogoIcon(data.logoIcon);
+        if (data.logoUrl) setLogoUrl(data.logoUrl);
+        if (data.faviconUrl) setFaviconUrl(data.faviconUrl);
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  // Update Favicon Effect
+  useEffect(() => {
+    if (faviconUrl) {
+      let link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.getElementsByTagName('head')[0].appendChild(link);
+      }
+      link.href = faviconUrl;
+    }
+  }, [faviconUrl]);
 
   const trackRecord: TrackRecordEntry[] = [
     { event: 'Aprobación ETF Bitcoin', date: '08 ene', ourEst: 92, marketPrice: 78, edge: 14, resolution: '10 ene', outcome: 'Aprobado', correct: true },
@@ -1681,7 +1842,8 @@ export default function App() {
     { name: 'Track Record', id: 'track-record' },
     { name: 'Guía', id: 'guia' },
     { name: 'Metodología', id: 'metodologia' },
-    { name: 'Suscripción', id: 'suscripcion' }
+    { name: 'Suscripción', id: 'suscripcion' },
+    { name: 'Telegram', id: 'telegram', url: 'https://t.me/edgio_predictions' }
   ];
 
   return (
@@ -1711,8 +1873,12 @@ export default function App() {
       <header className="sticky top-0 z-[100] backdrop-blur-xl bg-bg-base/85 border-b border-border-subtle">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2 cursor-pointer group" onClick={() => setView('landing')}>
-            <span className="w-8 h-8 rounded-lg bg-brand-indigo flex items-center justify-center text-white font-bold group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(99,102,241,0.3)]">
-              {logoIcon}
+            <span className="w-8 h-8 rounded-lg bg-brand-indigo flex items-center justify-center text-white font-bold group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(99,102,241,0.3)] overflow-hidden">
+              {logoUrl ? (
+                <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
+              ) : (
+                logoIcon
+              )}
             </span>
             <span className="font-semibold text-lg tracking-tight hidden sm:inline-block">
               {logoText}
@@ -1725,15 +1891,17 @@ export default function App() {
               <button 
                 key={item.name} 
                 onClick={() => {
-                  if (item.id === 'analisis') setView('analysis');
+                  if (item.url) window.open(item.url, '_blank', 'noreferrer');
+                  else if (item.id === 'analisis') setView('analysis');
                   else {
                     setView('landing');
                     setTimeout(() => document.getElementById(item.id)?.scrollIntoView({ behavior: 'smooth' }), 50);
                   }
                 }}
-                className={`${idx === 0 ? 'text-brand-indigo' : 'text-text-secondary hover:text-text-primary'} text-sm font-medium transition-colors`}
+                className={`${idx === 0 ? 'text-brand-indigo' : 'text-text-secondary hover:text-text-primary'} text-sm font-medium transition-colors flex items-center gap-1.5`}
               >
                 {item.name}
+                {item.url && <Send size={12} className="rotate-45" />}
               </button>
             ))}
           </nav>
@@ -1815,21 +1983,34 @@ export default function App() {
               className="fixed top-0 right-0 bottom-0 w-[280px] bg-bg-card z-[160] shadow-2xl p-8"
             >
               <div className="flex justify-between items-center mb-12">
-                <span className="font-semibold text-brand-indigo">{logoIcon} {logoText.substring(0, 3).toUpperCase()}</span>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-brand-indigo flex items-center justify-center text-white font-bold overflow-hidden">
+                    {logoUrl ? <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" /> : logoIcon}
+                  </div>
+                  <span className="font-semibold text-lg">{logoText}</span>
+                </div>
                 <button onClick={() => setIsMenuOpen(false)}>
                   <X size={24} />
                 </button>
               </div>
               <nav className="flex flex-col gap-6">
                 {navItems.map(item => (
-                  <a 
+                  <button 
                     key={item.name} 
-                    href={`#${item.id}`}
-                    onClick={() => setIsMenuOpen(false)}
-                    className="text-lg font-medium text-text-secondary active:text-brand-indigo"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      if (item.url) window.open(item.url, '_blank', 'noreferrer');
+                      else if (item.id === 'analisis') setView('analysis');
+                      else {
+                        setView('landing');
+                        setTimeout(() => document.getElementById(item.id)?.scrollIntoView({ behavior: 'smooth' }), 50);
+                      }
+                    }}
+                    className="text-lg font-medium text-text-secondary hover:text-brand-indigo transition-colors flex items-center justify-between"
                   >
                     {item.name}
-                  </a>
+                    {item.url && <Send size={16} className="rotate-45" />}
+                  </button>
                 ))}
               </nav>
             </motion.div>
@@ -2592,6 +2773,10 @@ export default function App() {
           setLogoText={setLogoText}
           logoIcon={logoIcon}
           setLogoIcon={setLogoIcon}
+          logoUrl={logoUrl}
+          setLogoUrl={setLogoUrl}
+          faviconUrl={faviconUrl}
+          setFaviconUrl={setFaviconUrl}
         />
       </motion.div>
     ) : view === 'analysis-detail' ? (
@@ -2626,7 +2811,9 @@ export default function App() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-12 mb-20 text-sm">
             <div className="col-span-2 md:col-span-1">
               <div className="flex items-center gap-2 mb-6">
-                <span className="text-brand-indigo font-bold text-xl">{logoIcon} {logoText.substring(0, 3).toUpperCase()}</span>
+                <div className="w-10 h-10 rounded-xl bg-brand-indigo flex items-center justify-center text-white font-bold overflow-hidden shadow-lg shadow-brand-indigo/10">
+                  {logoUrl ? <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" /> : logoIcon}
+                </div>
                 <span className="font-semibold text-lg">{logoText}</span>
               </div>
               <p className="text-text-secondary leading-relaxed mb-8 max-w-xs">
@@ -2675,12 +2862,17 @@ export default function App() {
               <h5 className="text-text-primary font-bold uppercase tracking-widest text-[11px] mb-6">Comunidad</h5>
               <ul className="space-y-4 text-text-secondary">
                 {[
+                  { name: 'Telegram', url: 'https://t.me/edgio_predictions', icon: <Send size={14} className="rotate-45" /> },
                   { name: 'Twitter / X', url: 'https://twitter.com' },
                   { name: 'LinkedIn', url: 'https://linkedin.com' },
-                  { name: 'Substack', url: 'https://substack.com' },
-                  { name: 'Discord', url: 'https://discord.com' }
+                  { name: 'Substack', url: 'https://substack.com' }
                 ].map(l => (
-                  <li key={l.name}><a href={l.url} target="_blank" rel="no-referrer" className="hover:text-brand-indigo transition-colors">{l.name}</a></li>
+                  <li key={l.name}>
+                    <a href={l.url} target="_blank" rel="no-referrer" className="hover:text-brand-indigo transition-colors flex items-center gap-2">
+                      {l.icon}
+                      {l.name}
+                    </a>
+                  </li>
                 ))}
               </ul>
             </div>

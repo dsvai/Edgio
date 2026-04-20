@@ -81,12 +81,14 @@ interface Analysis {
 }
 
 interface TrackRecordEntry {
+  id?: string;
   event: string;
   date: string;
   ourEst: number;
   marketPrice: number;
   edge: number;
   resolution: string;
+  resolutionTimestamp?: any;
   outcome: string;
   correct: boolean;
 }
@@ -984,42 +986,7 @@ const CheckoutPage = ({ plan, onBack, user, onLogin, showToast }: { plan: Plan, 
                   </div>
 
                   <div className="space-y-4">
-                    <div>
-                      <label className="block text-xs font-bold uppercase tracking-widest text-text-tertiary mb-2">Nombre en la tarjeta</label>
-                      <input 
-                        type="text"
-                        className="w-full bg-bg-card border border-border-subtle rounded-xl px-5 py-3.5 outline-none focus:border-brand-indigo transition-all"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold uppercase tracking-widest text-text-tertiary mb-2">Número de tarjeta</label>
-                      <div className="relative">
-                        <input 
-                          type="text"
-                          placeholder="0000 0000 0000 0000"
-                          className="w-full bg-bg-card border border-border-subtle rounded-xl px-5 py-3.5 outline-none focus:border-brand-indigo transition-all pr-12"
-                        />
-                        <CreditCard className="absolute right-4 top-1/2 -translate-y-1/2 text-text-tertiary" size={20} />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-bold uppercase tracking-widest text-text-tertiary mb-2">Expiración</label>
-                        <input 
-                          type="text"
-                          placeholder="MM/YY"
-                          className="w-full bg-bg-card border border-border-subtle rounded-xl px-5 py-3.5 outline-none focus:border-brand-indigo transition-all"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold uppercase tracking-widest text-text-tertiary mb-2">CVC</label>
-                        <input 
-                          type="text"
-                          placeholder="123"
-                          className="w-full bg-bg-card border border-border-subtle rounded-xl px-5 py-3.5 outline-none focus:border-brand-indigo transition-all"
-                        />
-                      </div>
-                    </div>
+                    <p className="text-sm text-text-secondary">Haz clic en el botón de abajo para ser redirigido a la pasarela segura de Stripe y completar tu suscripción.</p>
                   </div>
 
                   <button 
@@ -1031,23 +998,28 @@ const CheckoutPage = ({ plan, onBack, user, onLogin, showToast }: { plan: Plan, 
                       }
                       setIsProcessing(true);
                       try {
-                        const userDocRef = doc(db, 'users', user.uid);
-                        await updateDoc(userDocRef, {
-                          subscriptionStatus: plan.id,
-                          updatedAt: serverTimestamp()
+                        const response = await fetch('/api/stripe/create-checkout', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ userId: user.uid, plan: plan.id })
                         });
-                        showToast('¡Bienvenido! Tu plan ' + plan.name + ' ya está activo.');
-                        onBack();
-                      } catch (e) {
+                        
+                        const data = await response.json();
+                        if (data.url) {
+                          window.location.href = data.url;
+                        } else {
+                          throw new Error(data.error || 'Error al obtener sesión de Stripe');
+                        }
+                      } catch (e: any) {
                         console.error(e);
-                        showToast('Error al procesar la suscripción');
+                        showToast(`Error: ${e.message}`);
                       } finally {
                         setIsProcessing(false);
                       }
                     }}
                     className="w-full bg-brand-indigo hover:brightness-110 disabled:opacity-50 text-white font-bold py-4 rounded-xl shadow-lg shadow-brand-indigo/20 transition-all flex items-center justify-center gap-2 mt-8"
                   >
-                    {isProcessing ? 'Procesando...' : `Finalizar pago: ${plan.price}${plan.period ? '/' + plan.period : ''}`}
+                    {isProcessing ? 'Redirigiendo a Stripe...' : `Ir al pago seguro: ${plan.price}`}
                   </button>
                   <p className="text-center text-[11px] text-text-tertiary mt-4">
                     Al confirmar, aceptas nuestros términos de servicio y política de privacidad.
@@ -1198,7 +1170,9 @@ const AdminPanel = ({
   logoText, setLogoText, 
   logoIcon, setLogoIcon,
   logoUrl, setLogoUrl,
-  faviconUrl, setFaviconUrl
+  faviconUrl, setFaviconUrl,
+  currentUser,
+  showToast
 }: { 
   analyses: Analysis[], 
   onBack: () => void,
@@ -1209,12 +1183,63 @@ const AdminPanel = ({
   logoUrl: string | null,
   setLogoUrl: (u: string | null) => void,
   faviconUrl: string | null,
-  setFaviconUrl: (u: string | null) => void
+  setFaviconUrl: (u: string | null) => void,
+  currentUser: UserProfile | null,
+  showToast: (m: string) => void
 }) => {
-  const [activeTab, setActiveTab] = useState<'analyses' | 'settings'>('analyses');
+  const [activeTab, setActiveTab] = useState<'analyses' | 'settings' | 'track-record'>('analyses');
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isUploadingFavicon, setIsUploadingFavicon] = useState(false);
   const [editingAnalysis, setEditingAnalysis] = useState<Partial<Analysis> | null>(null);
+  const [editingTrack, setEditingTrack] = useState<Partial<TrackRecordEntry> | null>(null);
+  const [trackData, setTrackData] = useState<TrackRecordEntry[]>([]);
+
+  useEffect(() => {
+    const q = query(collection(db, 'trackRecord'), orderBy('resolutionTimestamp', 'desc'));
+    const unsub = onSnapshot(q, (snap) => {
+      setTrackData(snap.docs.map(d => ({ id: d.id, ...d.data() })) as unknown as TrackRecordEntry[]);
+    });
+    return () => unsub();
+  }, []);
+
+  const handleTestSubscription = async (status: 'free' | 'pro' | 'annual') => {
+    if (!currentUser) return;
+    try {
+      await updateDoc(doc(db, 'users', currentUser.uid), {
+        subscriptionStatus: status,
+        updatedAt: serverTimestamp()
+      });
+      showToast(`Estado cambiado a ${status.toUpperCase()} (Modo Test)`);
+    } catch (e) {
+      console.error(e);
+      showToast('Error al cambiar el estado');
+    }
+  };
+
+  const handleSaveTrack = async () => {
+    if (!editingTrack?.event) return;
+    try {
+      const data: any = {
+        ...editingTrack,
+        resolutionTimestamp: editingTrack.resolutionTimestamp || serverTimestamp(),
+        edge: (editingTrack.ourEst || 0) - (editingTrack.marketPrice || 0)
+      };
+      
+      const docId = editingTrack.id;
+      if (docId) {
+        delete data.id;
+        await setDoc(doc(db, 'trackRecord', docId), data);
+      } else {
+        const { addDoc } = await import('firebase/firestore');
+        await addDoc(collection(db, 'trackRecord'), data);
+      }
+      setEditingTrack(null);
+      showToast('Evento guardado');
+    } catch (e) {
+      console.error(e);
+      showToast('Error al guardar');
+    }
+  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'favicon') => {
     const file = e.target.files?.[0];
@@ -1233,8 +1258,10 @@ const AdminPanel = ({
       
       if (type === 'logo') setLogoUrl(url);
       else setFaviconUrl(url);
+      showToast(`${type === 'logo' ? 'Logo' : 'Favicon'} actualizado`);
     } catch (error) {
       console.error("Error uploading file:", error);
+      showToast('Error al subir');
     } finally {
       if (type === 'logo') setIsUploadingLogo(false);
       else setIsUploadingFavicon(false);
@@ -1245,8 +1272,10 @@ const AdminPanel = ({
     try {
       const brandingRef = doc(db, 'config', 'branding');
       await setDoc(brandingRef, { logoText, logoIcon }, { merge: true });
+      showToast('Branding guardado');
     } catch (e) {
       console.error(e);
+      showToast('Error al guardar');
     }
   };
 
@@ -1255,8 +1284,10 @@ const AdminPanel = ({
       try {
         const { deleteDoc } = await import('firebase/firestore');
         await deleteDoc(doc(db, 'analysis', id));
+        showToast('Análisis borrado');
       } catch (e) {
         console.error(e);
+        showToast('Error al borrar');
       }
     }
   };
@@ -1276,8 +1307,10 @@ const AdminPanel = ({
         await addDoc(collection(db, 'analysis'), data);
       }
       setEditingAnalysis(null);
+      showToast('Análisis guardado');
     } catch (e) {
       console.error(e);
+      showToast('Error al guardar');
     }
   };
 
@@ -1285,7 +1318,7 @@ const AdminPanel = ({
     <div className="pt-24 pb-32 px-6 max-w-7xl mx-auto min-h-screen">
       <div className="flex items-center justify-between mb-12">
         <div className="flex items-center gap-4">
-          <button onClick={onBack} className="p-2 hover:bg-white/5 rounded-full text-text-tertiary">
+          <button onClick={onBack} className="p-2 hover:bg-white/5 rounded-full text-text-tertiary transition-colors">
             <ArrowRight size={20} className="rotate-180" />
           </button>
           <h2 className="text-3xl font-bold">Panel de Control</h2>
@@ -1298,16 +1331,23 @@ const AdminPanel = ({
             Análisis
           </button>
           <button 
+            onClick={() => setActiveTab('track-record')}
+            className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === 'track-record' ? 'bg-brand-indigo text-white shadow-lg shadow-brand-indigo/20' : 'text-text-secondary hover:text-text-primary'}`}
+          >
+            Track Record
+          </button>
+          <button 
             onClick={() => setActiveTab('settings')}
             className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === 'settings' ? 'bg-brand-indigo text-white shadow-lg shadow-brand-indigo/20' : 'text-text-secondary hover:text-text-primary'}`}
           >
-            Ajustes
+            Marca
           </button>
         </div>
       </div>
 
       {activeTab === 'analyses' ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+          {/* Section: Analyses List */}
           <div className="lg:col-span-2 space-y-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold">Gestionar Análisis</h3>
@@ -1456,8 +1496,108 @@ const AdminPanel = ({
             )}
           </div>
         </div>
+      ) : activeTab === 'track-record' ? (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+          <div className="lg:col-span-2 space-y-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold">Gestionar Track Record</h3>
+              <button 
+                onClick={() => setEditingTrack({ event: '', date: '', ourEst: 50, marketPrice: 50, resolution: '', outcome: '', correct: true })}
+                className="flex items-center gap-2 bg-brand-emerald text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg shadow-brand-emerald/20"
+              >
+                <Plus size={18} /> Añadir Evento
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              {trackData.map(t => (
+                <div key={t.id} className="bg-bg-card border border-border-subtle rounded-2xl p-6 flex items-center justify-between group hover:border-brand-emerald/30 transition-all">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest ${t.correct ? 'bg-brand-emerald/10 text-brand-emerald' : 'bg-brand-danger/10 text-brand-danger'}`}>
+                        {t.correct ? 'Acertado' : 'Fallado'}
+                      </span>
+                    </div>
+                    <h4 className="font-semibold text-text-primary mb-1">{t.event}</h4>
+                    <p className="text-xs text-text-tertiary">{t.date} · Edge: {t.edge > 0 ? '+' : ''}{t.edge} pts</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setEditingTrack(t)} className="p-2 text-text-tertiary hover:text-brand-emerald hover:bg-brand-emerald/10 rounded-lg transition-colors">
+                      <Settings size={18} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="lg:sticky lg:top-28 h-fit">
+            {editingTrack ? (
+              <div className="bg-bg-card border border-brand-emerald/30 rounded-2xl p-8 shadow-2xl">
+                <h3 className="text-lg font-bold mb-6">{editingTrack.id ? 'Editar Evento' : 'Nuevo Evento'}</h3>
+                <div className="space-y-4 text-sm">
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-1 block">Nombre del Evento</label>
+                    <input type="text" value={editingTrack.event} onChange={e => setEditingTrack({...editingTrack, event: e.target.value})} className="w-full bg-bg-base border border-border-subtle rounded-xl px-4 py-3 outline-none" placeholder="Ej: Elecciones USA" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-1 block">Mes/Día (Label)</label>
+                      <input type="text" value={editingTrack.date} onChange={e => setEditingTrack({...editingTrack, date: e.target.value})} className="w-full bg-bg-base border border-border-subtle rounded-xl px-4 py-3 outline-none" placeholder="Ej: 04 nov" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-1 block">Acertamos</label>
+                      <select value={editingTrack.correct ? 'true' : 'false'} onChange={e => setEditingTrack({...editingTrack, correct: e.target.value === 'true'})} className="w-full bg-bg-base border border-border-subtle rounded-xl px-4 py-3 outline-none">
+                        <option value="true">SÍ</option>
+                        <option value="false">NO</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-1 block">Nuestra Est (%)</label>
+                      <input type="number" value={editingTrack.ourEst} onChange={e => setEditingTrack({...editingTrack, ourEst: Number(e.target.value)})} className="w-full bg-bg-base border border-border-subtle rounded-xl px-4 py-3 outline-none" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-1 block">Mkt Price (%)</label>
+                      <input type="number" value={editingTrack.marketPrice} onChange={e => setEditingTrack({...editingTrack, marketPrice: Number(e.target.value)})} className="w-full bg-bg-base border border-border-subtle rounded-xl px-4 py-3 outline-none" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-1 block">Resultado Real</label>
+                    <input type="text" value={editingTrack.outcome} onChange={e => setEditingTrack({...editingTrack, outcome: e.target.value})} className="w-full bg-bg-base border border-border-subtle rounded-xl px-4 py-3 outline-none" placeholder="Ej: Ganador X" />
+                  </div>
+                  <div className="flex gap-4 pt-4">
+                    <button onClick={() => setEditingTrack(null)} className="flex-1 border border-border-subtle text-text-tertiary font-bold py-3 rounded-xl">Cancelar</button>
+                    <button onClick={handleSaveTrack} className="flex-1 bg-brand-emerald text-white font-bold py-3 rounded-xl shadow-lg shadow-brand-emerald/20">Guardar</button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-bg-card border border-border-subtle rounded-2xl p-8 text-center flex flex-col items-center justify-center min-h-[300px]">
+                <Activity size={48} className="text-text-tertiary mb-4 opacity-20" />
+                <p className="text-text-tertiary text-sm">Gestiona el historial de aciertos para el track record público.</p>
+              </div>
+            )}
+          </div>
+        </div>
       ) : (
         <div className="max-w-xl space-y-12">
+          {/* Settings Tab content */}
+          <div className="p-8 bg-brand-indigo/5 border border-brand-indigo/20 rounded-3xl mb-12">
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+              <ShieldCheck className="text-brand-indigo" /> Modo Desarrollador (Pagos)
+            </h3>
+            <p className="text-sm text-text-tertiary mb-6">
+              Usa estos botones para cambiar tu estado de suscripción y probar cómo se comportan los análisis premium sin pasar por la pasarela de Stripe.
+            </p>
+            <div className="flex gap-4">
+              <button onClick={() => handleTestSubscription('free')} className="flex-1 py-3 bg-bg-card border border-border-subtle text-text-secondary rounded-xl text-xs font-bold hover:bg-white/5">VOLVER A FREE</button>
+              <button onClick={() => handleTestSubscription('pro')} className="flex-1 py-3 bg-brand-indigo text-white rounded-xl text-xs font-bold shadow-lg shadow-brand-indigo/20">SER PRO</button>
+              <button onClick={() => handleTestSubscription('annual')} className="flex-1 py-3 bg-brand-emerald text-white rounded-xl text-xs font-bold shadow-lg shadow-brand-emerald/20">SER ELITE</button>
+            </div>
+          </div>
+
           <div>
             <h3 className="text-xl font-bold mb-8">Personalización de Marca</h3>
             <div className="space-y-8">
@@ -1585,6 +1725,44 @@ export default function App() {
   const [toast, setToast] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [view, setView] = useState<'landing' | 'checkout' | 'article' | 'dashboard' | 'analysis' | 'admin' | 'analysis-detail'>('landing');
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+  const [selectedArticle, setSelectedArticle] = useState<AcademyArticle | null>(null);
+  const [selectedAnalysis, setSelectedAnalysis] = useState<Analysis | null>(null);
+  const [analyses, setAnalyses] = useState<Analysis[]>([]);
+  const [trackRecord, setTrackRecord] = useState<TrackRecordEntry[]>([]);
+  const [logoText, setLogoText] = useState('Edgio');
+  const [logoIcon, setLogoIcon] = useState('◆');
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [faviconUrl, setFaviconUrl] = useState<string | null>(null);
+
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, {
+    stiffness: 100,
+    damping: 30,
+    restDelta: 0.001
+  });
+
+  const showToast = (message: string) => {
+    setToast(message);
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleLogin = async () => {
+    try {
+      await signInWithPopup(auth, googleProvider);
+      showToast('Sesión iniciada');
+    } catch (error) {
+      console.error(error);
+      showToast('Error al iniciar sesión');
+    }
+  };
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    showToast('Sesión cerrada');
+    setView('landing');
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -1593,11 +1771,8 @@ export default function App() {
           const profile = await syncUserProfile(firebaseUser);
           setCurrentUser(profile);
           
-          const userDocRef = doc(db, 'users', firebaseUser.uid);
-          const unsubProfile = onSnapshot(userDocRef, (doc) => {
-            if (doc.exists()) {
-              setCurrentUser(doc.data() as UserProfile);
-            }
+          const unsubProfile = onSnapshot(doc(db, 'users', firebaseUser.uid), (doc) => {
+            if (doc.exists()) setCurrentUser(doc.data() as UserProfile);
           });
           return () => unsubProfile();
         } catch (error) {
@@ -1611,50 +1786,18 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  const handleLogin = async () => {
-    try {
-      await signInWithPopup(auth, googleProvider);
-      showToast('Sesión iniciada como ' + auth.currentUser?.displayName);
-    } catch (error) {
-      console.error(error);
-      showToast('Error al iniciar sesión');
-    }
-  };
-
-  const handleLogout = async () => {
-    await signOut(auth);
-    showToast('Sesión cerrada');
-    setView('landing');
-  };
-  const [view, setView] = useState<'landing' | 'checkout' | 'article' | 'dashboard' | 'analysis' | 'admin' | 'analysis-detail'>('landing');
-  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
-  const [selectedArticle, setSelectedArticle] = useState<AcademyArticle | null>(null);
-  const [selectedAnalysis, setSelectedAnalysis] = useState<Analysis | null>(null);
-  const [analyses, setAnalyses] = useState<Analysis[]>([]);
-  const [logoText, setLogoText] = useState('Edgio');
-  const [logoIcon, setLogoIcon] = useState('◆');
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [faviconUrl, setFaviconUrl] = useState<string | null>(null);
-  
-  const { scrollYProgress } = useScroll();
-  const scaleX = useSpring(scrollYProgress, {
-    stiffness: 100,
-    damping: 30,
-    restDelta: 0.001
-  });
-
   useEffect(() => {
-    const q = query(collection(db, 'analysis'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Analysis[];
-      setAnalyses(data);
+    const qAnalyses = query(collection(db, 'analysis'), orderBy('createdAt', 'desc'));
+    const unsubAnalyses = onSnapshot(qAnalyses, (snap) => {
+      setAnalyses(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as unknown as Analysis[]);
     });
-    return () => unsubscribe();
-  }, []);
 
-  // Persistent Branding Effect
-  useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'config', 'branding'), (snapshot) => {
+    const qTrack = query(collection(db, 'trackRecord'), orderBy('resolutionTimestamp', 'desc'));
+    const unsubTrack = onSnapshot(qTrack, (snap) => {
+      setTrackRecord(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })) as unknown as TrackRecordEntry[]);
+    });
+
+    const unsubBranding = onSnapshot(doc(db, 'config', 'branding'), (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data();
         if (data.logoText) setLogoText(data.logoText);
@@ -1663,10 +1806,14 @@ export default function App() {
         if (data.faviconUrl) setFaviconUrl(data.faviconUrl);
       }
     });
-    return () => unsub();
+
+    return () => {
+      unsubAnalyses();
+      unsubTrack();
+      unsubBranding();
+    };
   }, []);
 
-  // Update Favicon Effect
   useEffect(() => {
     if (faviconUrl) {
       let link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");
@@ -1679,16 +1826,32 @@ export default function App() {
     }
   }, [faviconUrl]);
 
-  const trackRecord: TrackRecordEntry[] = [
-    { event: 'Aprobación ETF Bitcoin', date: '08 ene', ourEst: 92, marketPrice: 78, edge: 14, resolution: '10 ene', outcome: 'Aprobado', correct: true },
-    { event: 'Elecciones Primarias NH', date: '21 ene', ourEst: 84, marketPrice: 88, edge: -4, resolution: '23 ene', outcome: 'Ganador X', correct: true },
-    { event: 'Mantenimiento Tipos FED', date: '29 ene', ourEst: 98, marketPrice: 94, edge: 4, resolution: '31 ene', outcome: 'Mantuvieron', correct: true },
-    { event: 'Fusión empresa Tech-X', date: '12 feb', ourEst: 35, marketPrice: 22, edge: 13, resolution: '20 feb', outcome: 'Cancelada', correct: true },
-    { event: 'Lanzamiento SpaceX Starship', date: '05 mar', ourEst: 65, marketPrice: 72, edge: -7, resolution: '14 mar', outcome: 'Éxito parcial', correct: false },
-    { event: 'Oscars: Mejor Película', date: '08 mar', ourEst: 91, marketPrice: 85, edge: 6, resolution: '10 mar', outcome: 'Correcto', correct: true },
-    { event: 'Inflación marzo < 3.4%', date: '05 abr', ourEst: 42, marketPrice: 58, edge: -16, resolution: '12 abr', outcome: '3.5%', correct: false },
-    { event: 'Elecciones Parlamento UE', date: '12 abr', ourEst: 55, marketPrice: 62, edge: -7, resolution: '15 abr', outcome: 'Resultado Y', correct: false }
-  ];
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('payment') === 'success') {
+      showToast('¡Pago completado con éxito! Bienvenido a la comunidad PRO.');
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (params.get('payment') === 'cancel') {
+      showToast('El pago ha sido cancelado.');
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
+  const brierScore = useMemo(() => {
+    if (trackRecord.length === 0) return '0.18';
+    const sum = trackRecord.reduce((acc, curr) => {
+      const outcome = curr.correct ? 1 : 0;
+      const prob = curr.ourEst / 100;
+      return acc + Math.pow(prob - outcome, 2);
+    }, 0);
+    return (sum / trackRecord.length).toFixed(2);
+  }, [trackRecord]);
+
+  const accuracy = useMemo(() => {
+    if (trackRecord.length === 0) return 73;
+    const correctCount = trackRecord.filter(t => t.correct).length;
+    return Math.round((correctCount / trackRecord.length) * 100);
+  }, [trackRecord]);
 
   const academyArticles: AcademyArticle[] = [
     {
@@ -1831,11 +1994,6 @@ export default function App() {
     document.querySelectorAll('.animate-on-scroll').forEach(el => observer.observe(el));
     return () => observer.disconnect();
   }, []);
-
-  const showToast = (message: string) => {
-    setToast(message);
-    setTimeout(() => setToast(null), 3000);
-  };
 
   const navItems = [
     { name: 'Análisis', id: 'analisis' },
@@ -2408,15 +2566,15 @@ export default function App() {
             <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4 animate-on-scroll">
               <div className="bg-bg-card/50 border border-border-subtle p-4 rounded-lg flex justify-between items-center group hover:border-brand-indigo/30 transition-colors">
                 <span className="text-text-tertiary text-[10px] uppercase font-semibold">Brier Score</span>
-                <span className="font-mono font-bold text-text-primary">0.18 <span className="text-text-tertiary font-normal">vs 0.24</span></span>
+                <span className="font-mono font-bold text-text-primary">{brierScore} <span className="text-text-tertiary font-normal">vs 0.24</span></span>
               </div>
               <div className="bg-bg-card/50 border border-border-subtle p-4 rounded-lg flex justify-between items-center group hover:border-brand-indigo/30 transition-colors">
                 <span className="text-text-tertiary text-[10px] uppercase font-semibold">Accuracy Direccional</span>
-                <span className="font-mono font-bold text-brand-emerald">73%</span>
+                <span className="font-mono font-bold text-brand-emerald">{accuracy}%</span>
               </div>
               <div className="bg-bg-card/50 border border-border-subtle p-4 rounded-lg flex justify-between items-center group hover:border-brand-indigo/30 transition-colors">
-                <span className="text-text-tertiary text-[10px] uppercase font-semibold">Edge Avg Aciertos</span>
-                <span className="font-mono font-bold text-brand-indigo">+11.2 pts</span>
+                <span className="text-text-tertiary text-[10px] uppercase font-semibold">Eventos Resueltos</span>
+                <span className="font-mono font-bold text-brand-indigo">{trackRecord.length}</span>
               </div>
             </div>
           </div>
@@ -2777,6 +2935,8 @@ export default function App() {
           setLogoUrl={setLogoUrl}
           faviconUrl={faviconUrl}
           setFaviconUrl={setFaviconUrl}
+          currentUser={currentUser}
+          showToast={showToast}
         />
       </motion.div>
     ) : view === 'analysis-detail' ? (

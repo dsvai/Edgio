@@ -1,10 +1,7 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 0. Global Safety Net
-    match /{document=**} {
-      allow read, write: if false;
-    }
+    // Global Safety Net (Moved to end)
 
     // Primitives
     function isSignedIn() { return request.auth != null; }
@@ -60,9 +57,15 @@ service cloud.firestore {
         );
     }
 
+    // Analysis Management
     match /analysis/{analysisId} {
-      allow read: if true;
+      allow get, list: if true;
       allow write: if isAdmin();
+    }
+
+    // Global Safety Net (Move to end)
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

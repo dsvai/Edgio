@@ -69,6 +69,7 @@ interface Analysis {
   status: 'active' | 'resolved';
   resolution?: string;
   isCorrect?: boolean;
+  isPremium?: boolean;
   imageUrl?: string;
   createdAt: any;
   polymarketId?: string; // ID for live sync
@@ -155,9 +156,14 @@ const StatItem = ({ value, label, subtext, highlight = 'indigo' }: { value: stri
   );
 };
 
-const AnalysisCardComp = ({ data, onClick }: { data: any, onClick: () => void, key?: React.Key }) => {
+const AnalysisCardComp = ({ data, onClick, currentUser }: { data: any, onClick: () => void, currentUser: UserProfile | null, key?: React.Key }) => {
   const edge = (data.ourProb || data.pReal) - (data.marketProb || data.pMarket);
   const isPositiveEdge = edge > 0;
+  const isPremium = data.isPremium === true;
+  const adminEmail = 'dani.sanchez.vila@gmail.com';
+  const isLocked = isPremium && 
+                   (!currentUser || (currentUser.subscriptionStatus !== 'pro' && currentUser.subscriptionStatus !== 'annual')) &&
+                   currentUser?.email !== adminEmail;
 
   return (
     <motion.div 
@@ -165,7 +171,7 @@ const AnalysisCardComp = ({ data, onClick }: { data: any, onClick: () => void, k
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       whileHover={{ y: -4, borderColor: 'rgba(99,102,241,0.4)' }}
-      className="bg-bg-card border border-border-subtle rounded-xl p-5 transition-all duration-200 group"
+      className="bg-bg-card border border-border-subtle rounded-xl p-5 transition-all duration-200 group relative overflow-hidden"
     >
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center gap-2">
@@ -176,12 +182,14 @@ const AnalysisCardComp = ({ data, onClick }: { data: any, onClick: () => void, k
           }`}>
             {data.category}
           </span>
-          <span className="px-2 py-0.5 bg-brand-emerald/10 text-brand-emerald rounded text-[10px] font-bold uppercase tracking-wider">
-            Gratuito
+          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+            isPremium ? 'bg-brand-indigo text-white' : 'bg-brand-emerald/10 text-brand-emerald'
+          }`}>
+            {isPremium ? 'Premium' : 'Gratuito'}
           </span>
         </div>
         <span className="font-mono text-[10px] text-text-tertiary">
-          {data.daysRemaining} DÍAS REST.
+          {data.daysRemaining || 7} DÍAS REST.
         </span>
       </div>
 
@@ -190,19 +198,19 @@ const AnalysisCardComp = ({ data, onClick }: { data: any, onClick: () => void, k
       </h3>
 
       <div className="grid grid-cols-2 gap-3 mb-4">
-        <div className="bg-bg-base/50 p-2 rounded-lg border border-border-subtle text-center">
+        <div className="bg-bg-base/50 p-2 rounded-lg border border-border-subtle text-center text-text-primary">
           <span className="block text-[9px] text-text-tertiary uppercase mb-0.5">Mercado</span>
-          <span className="font-mono text-lg font-semibold">{data.marketProb}%</span>
+          <span className="font-mono text-lg font-semibold">{data.marketProb || data.pMarket}%</span>
         </div>
         <div className={`bg-bg-base/50 p-2 rounded-lg border-l-2 text-center ${isPositiveEdge ? 'border-brand-emerald' : 'border-brand-danger'}`}>
           <span className="block text-[9px] text-text-tertiary uppercase mb-0.5">Nuestra Estim.</span>
-          <span className={`font-mono text-lg font-semibold ${isPositiveEdge ? 'text-brand-emerald' : 'text-brand-danger'}`}>{data.ourProb}%</span>
+          <span className={`font-mono text-lg font-semibold ${isPositiveEdge ? 'text-brand-emerald' : 'text-brand-danger'}`}>{data.ourProb || data.pReal}%</span>
         </div>
       </div>
 
       <div className="flex flex-col gap-1 mb-6">
         <div className="flex justify-between text-[10px] text-text-tertiary mb-1">
-          <span className="font-medium">Convicción {data.conviction}/10</span>
+          <span className="font-medium">Convicción {data.conviction || 7}/10</span>
           <span className={`font-bold ${isPositiveEdge ? 'text-brand-emerald' : 'text-brand-danger'}`}>
             {isPositiveEdge ? '+' : ''}{edge} EDGE
           </span>
@@ -210,7 +218,7 @@ const AnalysisCardComp = ({ data, onClick }: { data: any, onClick: () => void, k
         <div className="h-1 bg-border-subtle rounded-full overflow-hidden flex">
           <div 
             className="h-full bg-slate-600" 
-            style={{ width: `${Math.min(data.marketProb, data.ourProb)}%` }} 
+            style={{ width: `${Math.min(data.marketProb || data.pMarket, data.ourProb || data.pReal)}%` }} 
           />
           <div 
             className={`h-full ${isPositiveEdge ? 'bg-brand-emerald shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-brand-danger shadow-[0_0_8px_rgba(239,68,68,0.5)]'}`}
@@ -222,16 +230,26 @@ const AnalysisCardComp = ({ data, onClick }: { data: any, onClick: () => void, k
       </div>
       
       <div className="flex justify-between text-[10px] text-text-tertiary pt-4 border-t border-border-subtle/30">
-        <span>Publicado {new Date(data.publishedAt).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}</span>
-        <span className="font-mono">Liq. {data.liquidity}</span>
+        <span>Publicado {data.createdAt?.seconds ? new Date(data.createdAt.seconds * 1000).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }) : 'Hoy'}</span>
+        <span className="font-mono">Liq. {data.liquidity || '$240k'}</span>
       </div>
 
       <button 
         onClick={onClick}
         className="w-full mt-6 flex items-center justify-center gap-1 text-brand-indigo font-bold text-[11px] uppercase tracking-wider hover:underline transition-all"
       >
-        Ver análisis <ChevronRight size={14} />
+        {isLocked ? <Lock size={12} className="mr-1" /> : null}
+        {isLocked ? 'Desbloquear Análisis' : 'Ver análisis'} <ChevronRight size={14} />
       </button>
+
+      {isLocked && (
+        <div className="absolute inset-x-0 bottom-0 top-[40%] bg-gradient-to-t from-bg-card via-bg-card/90 to-transparent pointer-events-none flex items-end justify-center p-8">
+          <div className="text-center">
+            <Lock size={24} className="mx-auto text-brand-indigo/40 mb-2" />
+            <p className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest">Contenido exclusivo</p>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 };
@@ -1087,6 +1105,345 @@ const CheckoutPage = ({ plan, onBack, user, onLogin, showToast }: { plan: Plan, 
   );
 };
 
+const AnalysisDetailPage = ({ analysis, currentUser, onBack, onSubscribe }: { 
+  analysis: Analysis, 
+  currentUser: UserProfile | null,
+  onBack: () => void,
+  onSubscribe: () => void
+}) => {
+  const adminEmail = 'dani.sanchez.vila@gmail.com';
+  const isLocked = analysis.isPremium && 
+                   (!currentUser || (currentUser.subscriptionStatus !== 'pro' && currentUser.subscriptionStatus !== 'annual')) &&
+                   currentUser?.email !== adminEmail;
+
+  return (
+    <div className="pt-24 pb-32 px-6 max-w-4xl mx-auto min-h-screen">
+      <button onClick={onBack} className="flex items-center gap-2 text-text-tertiary hover:text-brand-indigo transition-colors mb-8 font-semibold text-sm">
+        <ArrowRight size={18} className="rotate-180" /> Volver a análisis
+      </button>
+
+      <div className="mb-12">
+        <div className="flex items-center gap-3 mb-6">
+          <span className="px-3 py-1 bg-brand-indigo/10 text-brand-indigo rounded-full text-xs font-bold uppercase tracking-widest">{analysis.category}</span>
+          <span className="text-text-tertiary text-xs font-mono">{analysis.createdAt?.seconds ? new Date(analysis.createdAt.seconds * 1000).toLocaleDateString() : 'Hoy'}</span>
+          {analysis.isPremium && <span className="flex items-center gap-1 text-amber-500 font-bold text-[10px] uppercase tracking-widest ml-auto"><Lock size={10} /> Exclusivo Pro</span>}
+        </div>
+        <h1 className="text-4xl md:text-5xl font-bold mb-8 leading-tight">{analysis.title}</h1>
+        
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+          <div className="bg-bg-card border border-border-subtle p-4 rounded-2xl">
+            <span className="text-[10px] text-text-tertiary uppercase block mb-1">Mercado</span>
+            <span className="text-2xl font-mono font-bold">{analysis.pMarket}%</span>
+          </div>
+          <div className="bg-bg-card border border-border-subtle p-4 rounded-2xl">
+            <span className="text-[10px] text-text-tertiary uppercase block mb-1">Real</span>
+            <span className="text-2xl font-mono font-bold text-brand-emerald">{analysis.pReal}%</span>
+          </div>
+          <div className="bg-bg-card border border-border-subtle p-4 rounded-2xl">
+            <span className="text-[10px] text-text-tertiary uppercase block mb-1">Edge</span>
+            <span className="text-2xl font-mono font-bold text-brand-indigo">+{analysis.pReal - analysis.pMarket}</span>
+          </div>
+          <div className="bg-bg-card border border-border-subtle p-4 rounded-2xl">
+            <span className="text-[10px] text-text-tertiary uppercase block mb-1">Estado</span>
+            <span className="text-2xl font-bold uppercase text-[10px] flex items-center gap-1">
+              <div className={`w-2 h-2 rounded-full ${analysis.status === 'active' ? 'bg-brand-emerald animate-pulse' : 'bg-text-tertiary'}`} />
+              {analysis.status === 'active' ? 'Abierto' : 'Cerrado'}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="relative">
+        <div className={`prose prose-invert max-w-none prose-headings:text-brand-indigo prose-a:text-brand-emerald ${isLocked ? 'blur-xl select-none pointer-events-none' : ''}`}>
+          <ReactMarkdown>{analysis.content || analysis.summary}</ReactMarkdown>
+        </div>
+
+        {isLocked && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center pt-20">
+            <div className="bg-bg-card/80 backdrop-blur-md border border-brand-indigo/30 p-12 rounded-3xl text-center max-w-md shadow-2xl">
+              <div className="w-16 h-16 bg-brand-indigo/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Lock size={32} className="text-brand-indigo" />
+              </div>
+              <h2 className="text-2xl font-bold mb-4">Análisis Reservado para Miembros Pro</h2>
+              <p className="text-text-secondary mb-8 leading-relaxed">
+                Este análisis detallado incluye el desglose bayesiano completo, fuentes primarias y actualizaciones en tiempo real.
+              </p>
+              <div className="space-y-4">
+                <button 
+                  onClick={onSubscribe}
+                  className="w-full bg-brand-indigo hover:brightness-110 text-white font-bold py-4 rounded-xl shadow-lg shadow-brand-indigo/20 transition-all flex items-center justify-center gap-2"
+                >
+                  Mejorar a Pro <Zap size={18} fill="currentColor" />
+                </button>
+                <div className="text-text-tertiary text-[10px] uppercase tracking-widest font-bold">
+                  Acceso instantáneo desde 19€/mes
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const AdminPanel = ({ analyses, onBack, logoText, setLogoText, logoIcon, setLogoIcon }: { 
+  analyses: Analysis[], 
+  onBack: () => void,
+  logoText: string,
+  setLogoText: (t: string) => void,
+  logoIcon: string,
+  setLogoIcon: (i: string) => void
+}) => {
+  const [activeTab, setActiveTab] = useState<'analyses' | 'settings'>('analyses');
+  const [editingAnalysis, setEditingAnalysis] = useState<Partial<Analysis> | null>(null);
+
+  const handleDelete = async (id: string) => {
+    if (confirm('¿Seguro que quieres borrar este análisis?')) {
+      try {
+        const { deleteDoc } = await import('firebase/firestore');
+        await deleteDoc(doc(db, 'analysis', id));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  };
+
+  const handleSaveAnalysis = async () => {
+    if (!editingAnalysis?.title) return;
+    try {
+      const { setDoc, addDoc, collection } = await import('firebase/firestore');
+      const data = {
+        ...editingAnalysis,
+        createdAt: editingAnalysis.createdAt || serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+      if (editingAnalysis.id) {
+        await setDoc(doc(db, 'analysis', editingAnalysis.id), data);
+      } else {
+        await addDoc(collection(db, 'analysis'), data);
+      }
+      setEditingAnalysis(null);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  return (
+    <div className="pt-24 pb-32 px-6 max-w-7xl mx-auto min-h-screen">
+      <div className="flex items-center justify-between mb-12">
+        <div className="flex items-center gap-4">
+          <button onClick={onBack} className="p-2 hover:bg-white/5 rounded-full text-text-tertiary">
+            <ArrowRight size={20} className="rotate-180" />
+          </button>
+          <h2 className="text-3xl font-bold">Panel de Control</h2>
+        </div>
+        <div className="flex bg-bg-card border border-border-subtle rounded-xl p-1">
+          <button 
+            onClick={() => setActiveTab('analyses')}
+            className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === 'analyses' ? 'bg-brand-indigo text-white shadow-lg shadow-brand-indigo/20' : 'text-text-secondary hover:text-text-primary'}`}
+          >
+            Análisis
+          </button>
+          <button 
+            onClick={() => setActiveTab('settings')}
+            className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all ${activeTab === 'settings' ? 'bg-brand-indigo text-white shadow-lg shadow-brand-indigo/20' : 'text-text-secondary hover:text-text-primary'}`}
+          >
+            Ajustes
+          </button>
+        </div>
+      </div>
+
+      {activeTab === 'analyses' ? (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+          <div className="lg:col-span-2 space-y-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold">Gestionar Análisis</h3>
+              <button 
+                onClick={() => setEditingAnalysis({ title: '', category: 'Política', status: 'active', pMarket: 50, pReal: 50, edge: 0, content: '', summary: '' })}
+                className="flex items-center gap-2 bg-brand-indigo text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg shadow-brand-indigo/20"
+              >
+                <Plus size={18} /> Nuevo Análisis
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              {analyses.map(a => (
+                <div key={a.id} className="bg-bg-card border border-border-subtle rounded-2xl p-6 flex items-center justify-between group hover:border-brand-indigo/30 transition-all">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary bg-white/5 px-2 py-0.5 rounded">{a.category}</span>
+                      <span className={`w-2 h-2 rounded-full ${a.status === 'active' ? 'bg-brand-emerald' : 'bg-text-tertiary'}`} />
+                    </div>
+                    <h4 className="font-semibold text-text-primary mb-1">{a.title}</h4>
+                    <p className="text-xs text-text-tertiary">{new Date(a.createdAt?.seconds * 1000).toLocaleDateString()} · Edge: {a.edge} pts</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setEditingAnalysis(a)} className="p-2 text-text-tertiary hover:text-brand-indigo hover:bg-brand-indigo/10 rounded-lg transition-colors">
+                      <Settings size={18} />
+                    </button>
+                    <button onClick={() => handleDelete(a.id)} className="p-2 text-text-tertiary hover:text-brand-danger hover:bg-brand-danger/10 rounded-lg transition-colors">
+                      <X size={18} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="lg:sticky lg:top-28 h-fit">
+            {editingAnalysis ? (
+              <div className="bg-bg-card border border-brand-indigo/30 rounded-2xl p-8 shadow-2xl">
+                <h3 className="text-lg font-bold mb-6">{editingAnalysis.id ? 'Editar Análisis' : 'Nuevo Análisis'}</h3>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="flex items-center gap-2 cursor-pointer group">
+                        <div className={`w-10 h-6 rounded-full transition-all relative ${editingAnalysis.isPremium ? 'bg-brand-indigo' : 'bg-white/10'}`}>
+                          <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${editingAnalysis.isPremium ? 'left-5' : 'left-1'}`} />
+                        </div>
+                        <input 
+                          type="checkbox" 
+                          className="hidden"
+                          checked={editingAnalysis.isPremium}
+                          onChange={e => setEditingAnalysis({...editingAnalysis, isPremium: e.target.checked})}
+                        />
+                        <span className="text-xs font-bold uppercase tracking-widest text-text-tertiary">Análisis Premium</span>
+                      </label>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-1 block">Título</label>
+                    <input 
+                      type="text" 
+                      value={editingAnalysis.title}
+                      onChange={e => setEditingAnalysis({...editingAnalysis, title: e.target.value})}
+                      className="w-full bg-bg-base border border-border-subtle rounded-xl px-4 py-3 text-sm focus:border-brand-indigo outline-none transition-all"
+                      placeholder="¿Qué pasará con...?"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-1 block">Categoría</label>
+                      <select 
+                        value={editingAnalysis.category}
+                        onChange={e => setEditingAnalysis({...editingAnalysis, category: e.target.value})}
+                        className="w-full bg-bg-base border border-border-subtle rounded-xl px-4 py-3 text-sm focus:border-brand-indigo outline-none transition-all appearance-none"
+                      >
+                        {['Política', 'Economía', 'Crypto', 'Deportes'].map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-1 block">Estado</label>
+                      <select 
+                        value={editingAnalysis.status}
+                        onChange={e => setEditingAnalysis({...editingAnalysis, status: e.target.value as 'active' | 'resolved'})}
+                        className="w-full bg-bg-base border border-border-subtle rounded-xl px-4 py-3 text-sm focus:border-brand-indigo outline-none transition-all appearance-none"
+                      >
+                        <option value="active">Activo</option>
+                        <option value="resolved">Resuelto</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-1 block">Mkt (%)</label>
+                      <input 
+                        type="number" 
+                        value={editingAnalysis.pMarket}
+                        onChange={e => setEditingAnalysis({...editingAnalysis, pMarket: Number(e.target.value)})}
+                        className="w-full bg-bg-base border border-border-subtle rounded-xl px-4 py-3 text-sm focus:border-brand-indigo outline-none font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-1 block">Real (%)</label>
+                      <input 
+                        type="number" 
+                        value={editingAnalysis.pReal}
+                        onChange={e => setEditingAnalysis({...editingAnalysis, pReal: Number(e.target.value)})}
+                        className="w-full bg-bg-base border border-border-subtle rounded-xl px-4 py-3 text-sm focus:border-brand-indigo outline-none font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-1 block">Edge</label>
+                      <div className="w-full bg-white/5 border border-white/5 text-brand-emerald font-bold rounded-xl px-4 py-3 text-sm font-mono flex items-center justify-center">
+                        {(editingAnalysis.pReal || 0) - (editingAnalysis.pMarket || 0)}
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-1 block">Contenido (Markdown)</label>
+                    <textarea 
+                      rows={6}
+                      value={editingAnalysis.content}
+                      onChange={e => setEditingAnalysis({...editingAnalysis, content: e.target.value})}
+                      className="w-full bg-bg-base border border-border-subtle rounded-xl px-4 py-3 text-sm focus:border-brand-indigo outline-none transition-all font-mono"
+                    />
+                  </div>
+                  <div className="flex gap-4 pt-4">
+                    <button 
+                      onClick={() => setEditingAnalysis(null)}
+                      className="flex-1 border border-border-subtle text-text-tertiary font-bold py-3 rounded-xl hover:bg-white/5 transition-all"
+                    >
+                      Cancelar
+                    </button>
+                    <button 
+                      onClick={handleSaveAnalysis}
+                      className="flex-1 bg-brand-indigo text-white font-bold py-3 rounded-xl shadow-lg shadow-brand-indigo/20 hover:brightness-110 transition-all"
+                    >
+                      {editingAnalysis.id ? 'Actualizar' : 'Publicar'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-bg-card border border-border-subtle rounded-2xl p-8 text-center flex flex-col items-center justify-center min-h-[300px]">
+                <Plus size={48} className="text-text-tertiary mb-4 opacity-20" />
+                <p className="text-text-tertiary text-sm">Selecciona un análisis o crea uno nuevo para empezar.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="max-w-xl space-y-12">
+          <div>
+            <h3 className="text-xl font-bold mb-8">Personalización de Marca</h3>
+            <div className="space-y-6">
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-1 block">Texto del Logotipo</label>
+                <input 
+                  type="text" 
+                  value={logoText}
+                  onChange={e => setLogoText(e.target.value)}
+                  className="w-full bg-bg-card border border-border-subtle rounded-xl px-4 py-3 text-sm focus:border-brand-indigo outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-1 block">Icono (Solo un carácter o emoji)</label>
+                <input 
+                  type="text" 
+                  value={logoIcon}
+                  onChange={e => setLogoIcon(e.target.value)}
+                  className="w-full bg-bg-card border border-border-subtle rounded-xl px-4 py-3 text-sm focus:border-brand-indigo outline-none"
+                />
+              </div>
+              <div className="p-6 bg-brand-indigo/5 border border-brand-indigo/20 rounded-2xl flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-brand-indigo flex items-center justify-center text-white text-xl font-bold shadow-lg">
+                  {logoIcon}
+                </div>
+                <div>
+                  <p className="font-bold text-text-primary">{logoText}</p>
+                  <p className="text-[10px] text-text-tertiary tracking-widest uppercase">Vista Previa</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState('Todos');
@@ -1137,9 +1494,13 @@ export default function App() {
     showToast('Sesión cerrada');
     setView('landing');
   };
-  const [view, setView] = useState<'landing' | 'checkout' | 'article' | 'dashboard' | 'analysis'>('landing');
+  const [view, setView] = useState<'landing' | 'checkout' | 'article' | 'dashboard' | 'analysis' | 'admin' | 'analysis-detail'>('landing');
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [selectedArticle, setSelectedArticle] = useState<AcademyArticle | null>(null);
+  const [selectedAnalysis, setSelectedAnalysis] = useState<Analysis | null>(null);
+  const [analyses, setAnalyses] = useState<Analysis[]>([]);
+  const [logoText, setLogoText] = useState('Edgio');
+  const [logoIcon, setLogoIcon] = useState('◆');
   
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, {
@@ -1148,38 +1509,14 @@ export default function App() {
     restDelta: 0.001
   });
 
-  const analysisCards: any[] = [
-    {
-      id: '1',
-      category: 'Política',
-      title: '¿Ganará la candidata de la oposición la segunda vuelta en Brasil?',
-      marketProb: 42,
-      ourProb: 53,
-      publishedAt: '2024-04-20',
-      liquidity: '$124.5k',
-      daysRemaining: 14
-    },
-    {
-      id: '2',
-      category: 'Economía',
-      title: '¿Recortará el BCE tipos antes de la reunión de junio?',
-      marketProb: 61,
-      ourProb: 65,
-      publishedAt: '2024-04-18',
-      liquidity: '$2.1M',
-      daysRemaining: 42
-    },
-    {
-      id: '3',
-      category: 'Crypto',
-      title: '¿Alcanzará Ethereum un nuevo máximo histórico antes de julio?',
-      marketProb: 34,
-      ourProb: 22,
-      publishedAt: '2024-04-21',
-      liquidity: '$890k',
-      daysRemaining: 68
-    }
-  ];
+  useEffect(() => {
+    const q = query(collection(db, 'analysis'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Analysis[];
+      setAnalyses(data);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const trackRecord: TrackRecordEntry[] = [
     { event: 'Aprobación ETF Bitcoin', date: '08 ene', ourEst: 92, marketPrice: 78, edge: 14, resolution: '10 ene', outcome: 'Aprobado', correct: true },
@@ -1232,11 +1569,11 @@ export default function App() {
   ];
 
   const filteredCards = useMemo(() => {
-    return analysisCards.filter(card => {
+    return analyses.filter(card => {
       const matchesCategory = activeFilter === 'Todos' || card.category === activeFilter;
       return matchesCategory;
     });
-  }, [activeFilter, analysisCards]);
+  }, [activeFilter, analyses]);
 
   const calibrateData: any = {
     datasets: [
@@ -1340,7 +1677,6 @@ export default function App() {
   };
 
   const navItems = [
-    { name: 'Inicio', id: 'inicio' },
     { name: 'Análisis', id: 'analisis' },
     { name: 'Track Record', id: 'track-record' },
     { name: 'Guía', id: 'guia' },
@@ -1376,12 +1712,12 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2 cursor-pointer group" onClick={() => setView('landing')}>
             <span className="w-8 h-8 rounded-lg bg-brand-indigo flex items-center justify-center text-white font-bold group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(99,102,241,0.3)]">
-              ◆
+              {logoIcon}
             </span>
             <span className="font-semibold text-lg tracking-tight hidden sm:inline-block">
-              Edgio
+              {logoText}
             </span>
-            <span className="font-semibold text-lg tracking-tight sm:hidden">EDG</span>
+            <span className="font-semibold text-lg tracking-tight sm:hidden">{logoText.substring(0, 3).toUpperCase()}</span>
           </div>
 
           <nav className="hidden md:flex items-center gap-8">
@@ -1430,6 +1766,11 @@ export default function App() {
                     <button onClick={() => setView('dashboard')} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-text-secondary hover:bg-white/5 rounded-lg transition-colors">
                       <Target size={14} /> Mi Panel
                     </button>
+                    {currentUser.email === 'dani.sanchez.vila@gmail.com' && (
+                      <button onClick={() => setView('admin')} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-brand-emerald hover:bg-brand-emerald/10 rounded-lg transition-colors">
+                        <Settings size={14} /> Administración
+                      </button>
+                    )}
                     <button onClick={handleLogout} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-brand-indigo hover:bg-brand-indigo/10 rounded-lg transition-colors">
                       <LogOut size={14} /> Cerrar Sesión
                     </button>
@@ -1474,7 +1815,7 @@ export default function App() {
               className="fixed top-0 right-0 bottom-0 w-[280px] bg-bg-card z-[160] shadow-2xl p-8"
             >
               <div className="flex justify-between items-center mb-12">
-                <span className="font-semibold text-brand-indigo">◆ EDG</span>
+                <span className="font-semibold text-brand-indigo">{logoIcon} {logoText.substring(0, 3).toUpperCase()}</span>
                 <button onClick={() => setIsMenuOpen(false)}>
                   <X size={24} />
                 </button>
@@ -1510,7 +1851,7 @@ export default function App() {
           <div className="max-w-4xl mx-auto text-center relative z-10">
       <div className="bg-brand-indigo/5 border border-brand-indigo/20 rounded-2xl p-6 md:p-8 mb-12">
         <div className="inline-flex items-center gap-2 px-2 py-1 bg-brand-indigo/10 border border-brand-indigo/30 rounded-full text-brand-indigo text-[10px] font-bold uppercase tracking-wider mb-6">
-          → Nuevo análisis publicado: Elecciones Generales en Uruguay
+          → {analyses.length > 0 ? `Nuevo análisis publicado: ${analyses[0].title}` : 'Seguimiento de mercados real en curso'}
         </div>
         <h1 className="text-text-primary text-[2.5rem] md:text-[4rem] font-semibold leading-[1.05] mb-8 tracking-tight">
           Detectamos ineficiencias en los mercados de predicción.
@@ -1520,13 +1861,19 @@ export default function App() {
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <button 
-            onClick={() => document.getElementById('analisis')?.scrollIntoView({ behavior: 'smooth' })}
+            onClick={() => {
+              const el = document.getElementById('analisis');
+              if (el) el.scrollIntoView({ behavior: 'smooth' });
+            }}
             className="w-full sm:w-auto bg-brand-indigo hover:brightness-110 text-white font-semibold px-8 py-4 rounded-xl transition-all shadow-lg shadow-brand-indigo/20 text-lg"
           >
             Ver análisis activos
           </button>
           <button 
-            onClick={() => document.getElementById('metodologia')?.scrollIntoView({ behavior: 'smooth' })}
+            onClick={() => {
+              const el = document.getElementById('metodologia');
+              if (el) el.scrollIntoView({ behavior: 'smooth' });
+            }}
             className="w-full sm:w-auto border border-border-subtle hover:bg-white/5 font-semibold px-8 py-4 rounded-xl transition-all text-lg"
           >
             ¿Cómo funciona?
@@ -1618,7 +1965,7 @@ export default function App() {
             <div>
               <div className="flex items-center gap-3 mb-4">
                 <h2 className="text-3xl font-semibold">Análisis publicados</h2>
-                <span className="bg-brand-indigo/10 text-brand-indigo text-[10px] font-bold px-2 py-0.5 rounded tracking-widest uppercase">3 Activos</span>
+                <span className="bg-brand-indigo/10 text-brand-indigo text-[10px] font-bold px-2 py-0.5 rounded tracking-widest uppercase">{analyses.filter(a => a.status === 'active').length} Activos</span>
               </div>
               <p className="text-text-secondary max-w-xl">
                 Detección sistemática de sesgos en mercados globales. Actualizado en tiempo real según nuevos flujos de información.
@@ -1650,12 +1997,11 @@ export default function App() {
                 <AnalysisCardComp 
                   key={card.id} 
                   data={card} 
+                  currentUser={currentUser}
                   onClick={() => {
-                    if (currentUser) {
-                      setView('analysis');
-                    } else {
-                      handleLogin();
-                    }
+                    setSelectedAnalysis(card);
+                    setView('analysis-detail');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
                 />
               ))}
@@ -2230,6 +2576,44 @@ export default function App() {
           />
         )}
       </motion.div>
+    ) : view === 'admin' && currentUser?.email === 'dani.sanchez.vila@gmail.com' ? (
+      <motion.div
+        key="admin"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+      >
+        <AdminPanel 
+          analyses={analyses} 
+          onBack={() => setView('landing')}
+          logoText={logoText}
+          setLogoText={setLogoText}
+          logoIcon={logoIcon}
+          setLogoIcon={setLogoIcon}
+        />
+      </motion.div>
+    ) : view === 'analysis-detail' ? (
+      <motion.div
+        key="analysis-detail"
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: -20 }}
+      >
+        {selectedAnalysis && (
+          <AnalysisDetailPage 
+            analysis={selectedAnalysis} 
+            currentUser={currentUser} 
+            onBack={() => setView('landing')}
+            onSubscribe={() => {
+              const el = document.getElementById('suscripcion');
+              if (el) {
+                setView('landing');
+                setTimeout(() => el.scrollIntoView({ behavior: 'smooth' }), 50);
+              }
+            }}
+          />
+        )}
+      </motion.div>
     ) : null}
   </AnimatePresence>
 </main>
@@ -2240,13 +2624,13 @@ export default function App() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-12 mb-20 text-sm">
             <div className="col-span-2 md:col-span-1">
               <div className="flex items-center gap-2 mb-6">
-                <span className="text-brand-indigo font-bold text-xl">◆ EDG</span>
-                <span className="font-semibold text-lg">Edgio</span>
+                <span className="text-brand-indigo font-bold text-xl">{logoIcon} {logoText.substring(0, 3).toUpperCase()}</span>
+                <span className="font-semibold text-lg">{logoText}</span>
               </div>
               <p className="text-text-secondary leading-relaxed mb-8 max-w-xs">
                 En un mundo de opiniones, nosotros ofrecemos probabilidades reales.
               </p>
-              <span className="text-text-tertiary block">© 2024 Edgio</span>
+              <span className="text-text-tertiary block">© 2024 {logoText}</span>
             </div>
 
             <div>
@@ -2302,7 +2686,7 @@ export default function App() {
           
           <div className="border-t border-border-subtle pt-8 text-center">
             <p className="text-text-tertiary text-[10px] leading-relaxed max-w-3xl mx-auto uppercase tracking-wider">
-              Edgio no ofrece asesoramiento financiero ni de inversión. Los mercados de predicción implican riesgo real. Opera con responsabilidad y basándote en tu propia diligencia debida.
+              {logoText} no ofrece asesoramiento financiero ni de inversión. Los mercados de predicción implican riesgo real. Opera con responsabilidad y basándote en tu propia diligencia debida.
             </p>
           </div>
         </div>

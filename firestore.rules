@@ -35,7 +35,8 @@ service cloud.firestore {
         && data.pReal is number
         && data.edge is number
         && data.content is string
-        && data.status in ['active', 'resolved'];
+        && data.status in ['active', 'resolved']
+        && (!('isPremium' in data) || data.isPremium is bool);
     }
 
     match /users/{userId} {
@@ -60,7 +61,7 @@ service cloud.firestore {
     }
 
     match /analysis/{analysisId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow write: if isAdmin();
     }
   }

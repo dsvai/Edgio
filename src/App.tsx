@@ -38,7 +38,12 @@ import {
   Upload,
   Image as ImageIcon,
   Loader2,
-  Send
+  Send,
+  Download,
+  ChevronDown,
+  Filter as FilterIcon,
+  Check,
+  X as XIcon
 } from 'lucide-react';
 import { motion, AnimatePresence, useScroll, useSpring } from 'framer-motion';
 import {
@@ -111,7 +116,613 @@ interface Plan {
   features: string[];
 }
 
-// --- Components ---
+const trackRecordData = [
+  {
+    id: 1,
+    evento: "¿Ganará Donald Trump las elecciones presidenciales de EE.UU. 2024?",
+    categoria: "Política",
+    fechaAnalisis: "2024-10-01",
+    diasAntes: 34,
+    estimacion: 58,
+    precioMercado: 49,
+    edge: 9,
+    resolucion: "2024-11-06",
+    resultado: "SÍ",
+    acierto: true,
+    conviccion: 7,
+    liquidez: 380000,
+    notas: "Base rate de incumbentes y candidatos previos. Mercado anclado a encuestas, no a modelos de estados clave."
+  },
+  {
+    id: 2,
+    evento: "¿Habrá recesión en EE.UU. antes de fin de 2024?",
+    categoria: "Macro",
+    fechaAnalisis: "2024-07-15",
+    diasAntes: 169,
+    estimacion: 18,
+    precioMercado: 28,
+    edge: -10,
+    resolucion: "2024-12-31",
+    resultado: "NO",
+    acierto: true,
+    conviccion: 8,
+    liquidez: 95000,
+    notas: "Mercado sobreestimaba probabilidad por datos de empleo retrasados. Indicadores adelantados apuntaban a aterrizaje suave."
+  },
+  {
+    id: 3,
+    evento: "¿Bajará la Fed los tipos de interés en septiembre 2024?",
+    categoria: "Macro",
+    fechaAnalisis: "2024-08-20",
+    diasAntes: 26,
+    estimacion: 82,
+    precioMercado: 67,
+    edge: 15,
+    resolucion: "2024-09-18",
+    resultado: "SÍ",
+    acierto: true,
+    conviccion: 8,
+    liquidez: 220000,
+    notas: "Jackson Hole fue señal clara. Mercado con recency bias de política restrictiva infravalorando el giro."
+  },
+  {
+    id: 4,
+    evento: "¿Llegará Bitcoin a 70.000$ antes del 1 de noviembre 2024?",
+    categoria: "Crypto",
+    fechaAnalisis: "2024-09-10",
+    diasAntes: 51,
+    estimacion: 35,
+    precioMercado: 44,
+    edge: -9,
+    resolucion: "2024-11-01",
+    resultado: "NO",
+    acierto: true,
+    conviccion: 6,
+    liquidez: 180000,
+    notas: "ETF flows positivos pero timing ajustado. El mercado sobreestimaba velocidad del rally pre-halving."
+  },
+  {
+    id: 5,
+    evento: "¿Ganará el Partido Laborista las elecciones generales del Reino Unido 2024?",
+    categoria: "Política",
+    fechaAnalisis: "2024-05-22",
+    diasAntes: 43,
+    estimacion: 91,
+    precioMercado: 79,
+    edge: 12,
+    resolucion: "2024-07-04",
+    resultado: "SÍ",
+    acierto: true,
+    conviccion: 9,
+    liquidez: 145000,
+    notas: "Encuestas consistentes, base rate de partidos incumbentes en ciclos de desgaste. Edge claro desde semanas antes."
+  },
+  {
+    id: 6,
+    evento: "¿Superará el S&P 500 los 5.500 puntos antes de julio 2024?",
+    categoria: "Mercados",
+    fechaAnalisis: "2024-04-05",
+    diasAntes: 86,
+    estimacion: 61,
+    precioMercado: 48,
+    edge: 13,
+    resolucion: "2024-06-30",
+    resultado: "SÍ",
+    acierto: true,
+    conviccion: 7,
+    liquidez: 78000,
+    notas: "Momentum de earnings Q1, inflación controlando. Mercado con descuento excesivo por riesgo electoral."
+  },
+  {
+    id: 7,
+    evento: "¿Presentará Elon Musk una oferta por TikTok antes de marzo 2025?",
+    categoria: "Tecnología",
+    fechaAnalisis: "2024-12-10",
+    diasAntes: 81,
+    estimacion: 22,
+    precioMercado: 31,
+    edge: -9,
+    resolucion: "2025-03-01",
+    resultado: "NO",
+    acierto: true,
+    conviccion: 6,
+    liquidez: 52000,
+    notas: "Narrative bias fuerte: medios cubrían mucho la historia pero señales reales de Musk apuntaban a no interés."
+  },
+  {
+    id: 8,
+    evento: "¿Habrá un shutdown del gobierno de EE.UU. en diciembre 2024?",
+    categoria: "Política",
+    fechaAnalisis: "2024-11-28",
+    diasAntes: 21,
+    estimacion: 38,
+    precioMercado: 29,
+    edge: 9,
+    resolucion: "2024-12-20",
+    resultado: "NO",
+    acierto: false,
+    conviccion: 6,
+    liquidez: 89000,
+    notas: "ERROR: Sobreponderamos la fragmentación del Congreso. El acuerdo de último minuto fue más probable de lo que estimamos. Ajuste: reducir peso de señales de ruido político a corto plazo."
+  },
+  {
+    id: 9,
+    evento: "¿Ganará Kamala Harris las elecciones presidenciales de EE.UU. 2024?",
+    categoria: "Política",
+    fechaAnalisis: "2024-10-01",
+    diasAntes: 34,
+    estimacion: 42,
+    precioMercado: 51,
+    edge: -9,
+    resolucion: "2024-11-06",
+    resultado: "NO",
+    acierto: true,
+    conviccion: 7,
+    liquidez: 390000,
+    notas: "Análisis espejo al de Trump. Mercado anclado a encuestas nacionales ignorando estructura del Electoral College."
+  },
+  {
+    id: 10,
+    evento: "¿Superará Ethereum los 4.000$ antes de fin de 2024?",
+    categoria: "Crypto",
+    fechaAnalisis: "2024-10-20",
+    diasAntes: 72,
+    estimacion: 44,
+    precioMercado: 38,
+    edge: 6,
+    resolucion: "2024-12-31",
+    resultado: "NO",
+    acierto: false,
+    conviccion: 5,
+    liquidez: 92000,
+    notas: "ERROR: Edge insuficiente (6 pts, por debajo del umbral de 8). No debimos publicar este análisis con convicción. La lección: respetar el umbral de edge mínimo sin excepciones."
+  },
+  {
+    id: 11,
+    evento: "¿Habrá elecciones anticipadas en Francia antes de marzo 2025?",
+    categoria: "Política",
+    fechaAnalisis: "2024-09-01",
+    diasAntes: 210,
+    estimacion: 28,
+    precioMercado: 41,
+    edge: -13,
+    resolucion: "2025-03-31",
+    resultado: "NO",
+    acierto: true,
+    conviccion: 7,
+    liquidez: 38000,
+    notas: "Mercado sobreestimaba inestabilidad. Base rate de gobiernos europeos en minoría que completan mandato es alta."
+  },
+  {
+    id: 12,
+    evento: "¿Bajará la Fed los tipos en noviembre 2024?",
+    categoria: "Macro",
+    fechaAnalisis: "2024-10-10",
+    diasAntes: 28,
+    estimacion: 89,
+    precioMercado: 78,
+    edge: 11,
+    resolucion: "2024-11-07",
+    resultado: "SÍ",
+    acierto: true,
+    conviccion: 9,
+    liquidez: 198000,
+    notas: "Dos bajadas consecutivas con datos de empleo debilitándose. Señal casi telegráfica de Powell en octubre."
+  },
+  {
+    id: 13,
+    evento: "¿Llegará Bitcoin a 100.000$ antes de fin de 2024?",
+    categoria: "Crypto",
+    fechaAnalisis: "2024-11-10",
+    diasAntes: 51,
+    estimacion: 52,
+    precioMercado: 41,
+    edge: 11,
+    resolucion: "2024-12-31",
+    resultado: "SÍ",
+    acierto: true,
+    conviccion: 7,
+    liquidez: 420000,
+    notas: "Post-elecciones Trump, ETF flows récord, halving con 7 meses de antelación. Mercado aún con recency bias bajista."
+  },
+  {
+    id: 14,
+    evento: "¿Renunciará Trudeau como primer ministro de Canadá antes de febrero 2025?",
+    categoria: "Política",
+    fechaAnalisis: "2024-12-15",
+    diasAntes: 47,
+    estimacion: 71,
+    precioMercado: 58,
+    edge: 13,
+    resolucion: "2025-01-06",
+    resultado: "SÍ",
+    acierto: true,
+    conviccion: 8,
+    liquidez: 67000,
+    notas: "Presión interna del partido documentada. Base rate de líderes con aprobación <25% que sobreviven 6 meses: muy baja."
+  },
+  {
+    id: 15,
+    evento: "¿Superará el oro los 2.800$/oz antes de fin de 2024?",
+    categoria: "Mercados",
+    fechaAnalisis: "2024-10-25",
+    diasAntes: 67,
+    estimacion: 41,
+    precioMercado: 52,
+    edge: -11,
+    resolucion: "2024-12-31",
+    resultado: "NO",
+    acierto: true,
+    conviccion: 6,
+    liquidez: 44000,
+    notas: "Dólar fuerte post-elecciones Trump. Mercado sobreestimaba momentum del oro ignorando correlación inversa con DXY."
+  }
+];
+
+const TrackRecordSection = () => {
+  const [filter, setFilter] = useState('Todos');
+  const [successFilter, setSuccessFilter] = useState<null | boolean>(null); // null: todos, true: aciertos, false: errores
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+
+  const filteredData = useMemo(() => {
+    let data = [...trackRecordData];
+    if (filter !== 'Todos') {
+      data = data.filter(item => item.categoria === filter);
+    }
+    if (successFilter !== null) {
+      data = data.filter(item => item.acierto === successFilter);
+    }
+    if (sortConfig) {
+      data.sort((a: any, b: any) => {
+        if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+    return data;
+  }, [filter, successFilter, sortConfig]);
+
+  const stats = useMemo(() => {
+    const total = filteredData.length;
+    if (total === 0) return { accuracy: '0%', brier: '0.00', avgEdge: '+0.0 pts', total: 0 };
+    
+    const aciertos = filteredData.filter(d => d.acierto).length;
+    const accuracy = ((aciertos / total) * 100).toFixed(0) + '%';
+    
+    const brierSum = filteredData.reduce((acc, curr) => {
+      const outcome = curr.acierto ? (curr.resultado === 'SÍ' ? 1 : 0) : (curr.resultado === 'SÍ' ? 0 : 1);
+      // Wait, Brier Score is (forecast - outcome)^2. 
+      // If SÍ happens, outcome is 1. If NO happens, outcome is 0.
+      // So if result is SÍ, and outcome is 1. If result is NO, outcome is 0.
+      // acierto=true means our forecast was on the right side.
+      // Forecast is estimacion / 100.
+      const realOutcome = curr.resultado === 'SÍ' ? 1 : 0;
+      return acc + Math.pow((curr.estimacion / 100) - realOutcome, 2);
+    }, 0);
+    const brier = (brierSum / total).toFixed(2);
+    
+    const correctData = filteredData.filter(d => d.acierto);
+    const avgEdgeValue = correctData.length > 0 
+      ? correctData.reduce((acc, curr) => acc + Math.abs(curr.edge), 0) / correctData.length
+      : 0;
+    const avgEdge = `+${avgEdgeValue.toFixed(1)} pts`;
+    
+    return { accuracy, brier, avgEdge, total };
+  }, [filteredData]);
+
+  const requestSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const downloadCSV = () => {
+    const headers = ["ID", "Evento", "Categoria", "Fecha Analisis", "Dias Antes", "Estimacion", "Precio Mercado", "Edge", "Resolucion", "Resultado", "Acierto", "Conviccion", "Liquidez", "Notas"];
+    const csvRows = trackRecordData.map(d => [
+      d.id,
+      `"${d.evento}"`,
+      d.categoria,
+      d.fechaAnalisis,
+      d.diasAntes,
+      d.estimacion,
+      d.precioMercado,
+      d.edge,
+      d.resolucion,
+      d.resultado,
+      d.acierto,
+      d.conviccion,
+      d.liquidez,
+      `"${d.notas}"`
+    ].join(","));
+    
+    const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + csvRows.join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "edgio_track_record.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  return (
+    <section id="track-record" className="py-16 md:py-32 px-6 bg-[#0A0A0F]">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-12 md:mb-20">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12">
+            <div>
+              <h2 className="text-4xl md:text-5xl font-bold text-text-primary mb-4 leading-tight">Track Record completo</h2>
+              <p className="text-text-secondary text-lg">Todos los análisis publicados antes de la resolución. Sin editar. Sin eliminar.</p>
+            </div>
+            
+            <div className="grid grid-cols-2 md:flex gap-6">
+              <div className="bg-[#111118] border border-border-subtle p-6 rounded-2xl min-w-[140px] group hover:border-brand-indigo/50 transition-colors">
+                <span className="text-[10px] text-text-tertiary uppercase font-bold tracking-widest block mb-2">Tasa de acierto</span>
+                <span className="text-4xl font-mono font-bold text-brand-emerald">{stats.accuracy}</span>
+              </div>
+              <div className="bg-[#111118] border border-border-subtle p-6 rounded-2xl min-w-[140px] group hover:border-brand-indigo/50 transition-colors">
+                <span className="text-[10px] text-text-tertiary uppercase font-bold tracking-widest block mb-2">Brier Score</span>
+                <span className="text-4xl font-mono font-bold text-brand-indigo">{stats.brier}</span>
+              </div>
+              <div className="bg-[#111118] border border-border-subtle p-6 rounded-2xl min-w-[140px] group hover:border-brand-indigo/50 transition-colors">
+                <span className="text-[10px] text-text-tertiary uppercase font-bold tracking-widest block mb-2">Edge Promedio</span>
+                <span className="text-4xl font-mono font-bold text-brand-emerald">{stats.avgEdge}</span>
+              </div>
+              <div className="bg-[#111118] border border-border-subtle p-6 rounded-2xl min-w-[140px] group hover:border-brand-indigo/50 transition-colors">
+                <span className="text-[10px] text-text-tertiary uppercase font-bold tracking-widest block mb-2">Predicciones</span>
+                <span className="text-4xl font-mono font-bold text-brand-indigo">{stats.total}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Filters */}
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6 py-6 border-y border-border-subtle">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-bold text-text-tertiary uppercase tracking-widest mr-4 flex items-center gap-2">
+                <FilterIcon size={14} /> Filtros:
+              </span>
+              {['Todos', 'Política', 'Macro', 'Crypto', 'Mercados', 'Tecnología'].map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setFilter(cat)}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                    filter === cat 
+                      ? 'bg-brand-indigo text-white shadow-lg shadow-brand-indigo/20' 
+                      : 'bg-[#111118] text-text-secondary hover:text-text-primary border border-border-subtle hover:border-text-tertiary'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+            
+            <div className="flex items-center gap-2 bg-[#111118] p-1 rounded-xl border border-border-subtle">
+              <button
+                onClick={() => setSuccessFilter(null)}
+                className={`px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all ${successFilter === null ? 'bg-bg-base text-text-primary shadow' : 'text-text-tertiary hover:text-text-secondary'}`}
+              >
+                TODOS
+              </button>
+              <button
+                onClick={() => setSuccessFilter(true)}
+                className={`px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all ${successFilter === true ? 'bg-brand-emerald/10 text-brand-emerald shadow' : 'text-text-tertiary hover:text-text-secondary'}`}
+              >
+                ACIERTOS
+              </button>
+              <button
+                onClick={() => setSuccessFilter(false)}
+                className={`px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all ${successFilter === false ? 'bg-brand-danger/10 text-brand-danger shadow' : 'text-text-tertiary hover:text-text-secondary'}`}
+              >
+                ERRORES
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Transparencia Box */}
+        <div className="mb-8 p-6 bg-brand-indigo/5 border border-brand-indigo/30 rounded-3xl animate-on-scroll">
+          <div className="flex items-start gap-4">
+            <div className="bg-brand-indigo/10 p-3 rounded-full text-brand-indigo shrink-0">
+              <Activity size={24} />
+            </div>
+            <div>
+              <h4 className="text-text-primary font-bold mb-2">Nota de transparencia</h4>
+              <p className="text-text-secondary text-sm leading-relaxed">
+                Los registros marcados en rojo son análisis incorrectos. Los publicamos con la misma prominencia que los aciertos porque la transparencia total es el núcleo de nuestra propuesta de valor.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Table Desktop */}
+        <div className="hidden md:block overflow-hidden rounded-3xl border border-border-subtle bg-[#0A0A0F] shadow-2xl">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-[#1E1E2E] text-[10px] uppercase font-bold tracking-widest text-text-tertiary">
+                <th className="px-6 py-4 cursor-pointer hover:text-text-primary transition-colors" onClick={() => requestSort('fechaAnalisis')}>
+                  Fecha {sortConfig?.key === 'fechaAnalisis' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                </th>
+                <th className="px-6 py-4">Evento</th>
+                <th className="px-6 py-4">Categoría</th>
+                <th className="px-6 py-4 cursor-pointer hover:text-text-primary transition-colors" onClick={() => requestSort('estimacion')}>
+                  Est / Mkt {sortConfig?.key === 'estimacion' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                </th>
+                <th className="px-6 py-4 cursor-pointer hover:text-text-primary transition-colors" onClick={() => requestSort('edge')}>
+                  Edge {sortConfig?.key === 'edge' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
+                </th>
+                <th className="px-6 py-4">Convicción</th>
+                <th className="px-6 py-4">Resultado</th>
+                <th className="px-6 py-4 text-right">Acierto</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredData.map((item, idx) => (
+                <React.Fragment key={item.id}>
+                  <tr 
+                    onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
+                    className={`group cursor-pointer transition-colors ${idx % 2 === 0 ? 'bg-[#0A0A0F]' : 'bg-[#111118]'} hover:bg-white/5 ${!item.acierto ? 'border-l-4 border-brand-danger' : 'border-l-4 border-transparent'}`}
+                  >
+                    <td className="px-6 py-6 text-xs font-mono text-text-tertiary whitespace-nowrap">{item.fechaAnalisis}</td>
+                    <td className="px-6 py-6">
+                      <p className="text-sm font-medium text-text-primary line-clamp-2">{item.evento}</p>
+                    </td>
+                    <td className="px-6 py-6">
+                      <span className="px-2 py-1 bg-white/5 border border-white/10 rounded text-[10px] font-bold text-text-secondary">{item.categoria}</span>
+                    </td>
+                    <td className="px-6 py-6 whitespace-nowrap">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-mono font-bold text-text-primary">{item.estimacion}%</span>
+                        <span className="text-[10px] font-mono text-text-tertiary">{item.precioMercado}% mkt</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-6">
+                      <div className="relative group/tooltip">
+                        <span className={`text-sm font-mono font-bold ${item.edge > 0 ? 'text-brand-emerald' : 'text-brand-danger'}`}>
+                          {item.edge > 0 ? `+${item.edge}` : item.edge}
+                        </span>
+                        {Math.abs(item.edge) < 8 && (
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-bg-card border border-border-subtle rounded text-[10px] whitespace-nowrap opacity-0 group-hover/tooltip:opacity-100 transition-opacity z-50">
+                            Edge por debajo del umbral
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-6">
+                      <div className="flex gap-0.5">
+                        {[...Array(10)].map((_, i) => (
+                          <div key={i} className={`w-2 h-2 rounded-full ${i < item.conviccion ? 'bg-brand-indigo shadow-[0_0_5px_rgba(99,102,241,0.5)]' : 'bg-white/10'}`} />
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-6 py-6">
+                      <span className={`px-2 py-1 rounded text-[10px] font-bold flex items-center gap-1 w-fit ${item.resultado === 'SÍ' ? 'text-brand-emerald bg-brand-emerald/10' : 'text-brand-danger bg-brand-danger/10'}`}>
+                        {item.resultado === 'SÍ' ? <Check size={10} /> : <XIcon size={10} />} {item.resultado}
+                      </span>
+                    </td>
+                    <td className="px-6 py-6 text-right">
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${item.acierto ? 'text-brand-emerald bg-brand-emerald/10' : 'text-brand-danger bg-brand-danger/10'}`}>
+                        {item.acierto ? 'ACIERTO' : 'ERROR'}
+                      </span>
+                    </td>
+                  </tr>
+                  {expandedId === item.id && (
+                    <motion.tr 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      className="bg-brand-indigo/5 border-l-4 border-brand-indigo"
+                    >
+                      <td colSpan={8} className="px-12 py-8">
+                        <div className="flex flex-col md:flex-row gap-8">
+                          <div className="flex-1">
+                            <h5 className="text-[10px] font-bold text-brand-indigo uppercase tracking-[0.2em] mb-4">Notas Retrospectivas</h5>
+                            <p className="text-text-secondary leading-relaxed italic">"{item.notas}"</p>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4 text-[10px] uppercase font-mono tracking-widest text-text-tertiary">
+                            <div>Resolución: <span className="text-text-primary">{item.resolucion}</span></div>
+                            <div>Días antes: <span className="text-text-primary">{item.diasAntes}</span></div>
+                            <div>Liquidez: <span className="text-text-primary">${item.liquidez.toLocaleString()}</span></div>
+                            <div>Convicción: <span className="text-text-primary">{item.conviccion}/10</span></div>
+                          </div>
+                        </div>
+                      </td>
+                    </motion.tr>
+                  )}
+                </React.Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile Cards */}
+        <div className="md:hidden space-y-4">
+          {filteredData.map(item => (
+            <motion.div 
+              key={item.id}
+              onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
+              className={`bg-[#111118] border border-border-subtle rounded-2xl p-5 ${!item.acierto ? 'border-l-4 border-brand-danger' : 'border-l-4 border-brand-indigo'}`}
+            >
+              <div className="flex justify-between items-start mb-4">
+                <div className="flex flex-col gap-1">
+                  <span className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest">{item.categoria} · {item.fechaAnalisis}</span>
+                  <p className="text-sm font-bold text-text-primary leading-tight">{item.evento}</p>
+                </div>
+                <span className={`px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 ${item.resultado === 'SÍ' ? 'text-brand-emerald bg-brand-emerald/10' : 'text-brand-danger bg-brand-danger/10'}`}>
+                   {item.resultado}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-end">
+                <div className="space-y-4">
+                  <div className="flex gap-4">
+                    <div className="flex flex-col">
+                      <span className="text-[9px] text-text-tertiary uppercase font-bold">Estimación</span>
+                      <span className="text-lg font-mono font-bold text-text-primary">{item.estimacion}%</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[9px] text-text-tertiary uppercase font-bold">Mercado</span>
+                      <span className="text-lg font-mono font-bold text-text-tertiary">{item.precioMercado}%</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-0.5">
+                    {[...Array(10)].map((_, i) => (
+                      <div key={i} className={`w-1.5 h-1.5 rounded-full ${i < item.conviccion ? 'bg-brand-indigo' : 'bg-white/10'}`} />
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="text-right">
+                  <div className="flex flex-col items-end">
+                    <span className="text-[9px] text-text-tertiary uppercase font-bold">Edge</span>
+                    <span className={`text-2xl font-mono font-bold ${item.edge > 0 ? 'text-brand-emerald' : 'text-brand-danger'}`}>
+                      {item.edge > 0 ? `+${item.edge}` : item.edge}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold mt-1 ${item.acierto ? 'text-brand-emerald bg-brand-emerald/10' : 'text-brand-danger bg-brand-danger/10'}`}>
+                      {item.acierto ? 'ACIERTO' : 'ERROR'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {expandedId === item.id && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="mt-6 pt-6 border-t border-border-subtle"
+                >
+                   <p className="text-xs text-text-secondary leading-relaxed italic mb-4">"{item.notas}"</p>
+                   <div className="grid grid-cols-2 gap-4 text-[9px] uppercase font-mono tracking-widest text-text-tertiary">
+                      <div>Res: <span className="text-text-primary">{item.resolucion}</span></div>
+                      <div>Días: <span className="text-text-primary">{item.diasAntes}</span></div>
+                   </div>
+                </motion.div>
+              )}
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Footer */}
+        <div className="mt-12 flex flex-col md:flex-row items-center justify-between gap-6 border-t border-border-subtle pt-8">
+          <div className="flex items-center gap-4">
+             <button 
+               onClick={downloadCSV}
+               className="flex items-center gap-2 px-6 py-3 bg-white/5 border border-border-subtle hover:bg-white/10 rounded-2xl text-text-primary font-bold text-sm transition-all shadow-lg active:scale-95"
+             >
+               <Download size={18} /> Descargar CSV completo
+             </button>
+             <p className="text-xs text-text-tertiary">Metodología de cálculo documentada → <button className="text-brand-indigo hover:underline">Ver guía</button></p>
+          </div>
+          <p className="text-[10px] text-text-tertiary uppercase tracking-widest text-center md:text-right">
+            Análisis publicados con fecha anterior a resolución. Sin modificaciones posteriores.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+};
 
 const StatItem = ({ value, label, subtext, highlight = 'indigo' }: { value: string, label: string, subtext: string, highlight?: 'indigo' | 'emerald', key?: React.Key }) => {
   const [count, setCount] = useState(0);
@@ -344,7 +955,7 @@ const AcademyCard = ({ article, onRead }: { article: AcademyArticle, onRead: (ar
   );
 };
 
-const ArticlePage = ({ article, onBack }: { article: AcademyArticle, onBack: () => void }) => {
+const ArticlePage = ({ article, onBack, theme }: { article: AcademyArticle, onBack: () => void, theme: string }) => {
   return (
     <div className="min-h-screen pt-12 pb-24 bg-bg-base">
       <div className="max-w-4xl mx-auto px-6">
@@ -376,7 +987,7 @@ const ArticlePage = ({ article, onBack }: { article: AcademyArticle, onBack: () 
           </div>
         </header>
 
-        <article className="prose prose-invert max-w-none">
+        <article className={`prose ${theme === 'dark' ? 'prose-invert' : 'prose-slate'} max-w-none`}>
           <div className="space-y-6 text-text-secondary leading-relaxed text-lg">
             {article.content.split('\n\n').map((paragraph, i) => (
               <p key={i}>{paragraph}</p>
@@ -498,7 +1109,7 @@ const PolymarketFeed = () => {
   );
 };
 
-const AnalysisPage = ({ onBack }: { onBack: () => void }) => {
+const AnalysisPage = ({ onBack, theme }: { onBack: () => void, theme: string }) => {
   const [analyses, setAnalyses] = useState<Analysis[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -615,7 +1226,7 @@ const AnalysisPage = ({ onBack }: { onBack: () => void }) => {
                                 </div>
                               </div>
 
-                              <div className="prose prose-invert max-w-none prose-p:text-text-secondary prose-p:leading-relaxed prose-headings:text-text-primary prose-strong:text-text-primary border-t border-border-subtle pt-12">
+                              <div className={`prose ${theme === 'dark' ? 'prose-invert' : 'prose-slate'} max-w-none prose-p:text-text-secondary prose-p:leading-relaxed prose-headings:text-text-primary prose-strong:text-text-primary border-t border-border-subtle pt-12`}>
                                 <ReactMarkdown>{analysis.content}</ReactMarkdown>
                               </div>
                             </div>
@@ -998,20 +1609,24 @@ const CheckoutPage = ({ plan, onBack, user, onLogin, showToast }: { plan: Plan, 
                       }
                       setIsProcessing(true);
                       try {
-                        const response = await fetch('/api/stripe/create-checkout', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
+                        const res = await fetch("/api/create-checkout-session", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({ userId: user.uid, plan: plan.id })
                         });
-                        
-                        const data = await response.json();
+
+                        const data = await res.json();
+
+                        console.log(data);
+
                         if (data.url) {
                           window.location.href = data.url;
                         } else {
-                          throw new Error(data.error || 'Error al obtener sesión de Stripe');
+                          console.error("No URL returned");
+                          showToast("Error: No se pudo generar la sesión de pago.");
                         }
                       } catch (e: any) {
-                        console.error(e);
+                        console.error("Checkout error:", e);
                         showToast(`Error: ${e.message}`);
                       } finally {
                         setIsProcessing(false);
@@ -1082,11 +1697,12 @@ const CheckoutPage = ({ plan, onBack, user, onLogin, showToast }: { plan: Plan, 
   );
 };
 
-const AnalysisDetailPage = ({ analysis, currentUser, onBack, onSubscribe }: { 
+const AnalysisDetailPage = ({ analysis, currentUser, onBack, onSubscribe, theme }: { 
   analysis: Analysis, 
   currentUser: UserProfile | null,
   onBack: () => void,
-  onSubscribe: () => void
+  onSubscribe: () => void,
+  theme: string
 }) => {
   const adminEmail = 'dani.sanchez.vila@gmail.com';
   const isLocked = analysis.isPremium && 
@@ -1131,7 +1747,7 @@ const AnalysisDetailPage = ({ analysis, currentUser, onBack, onSubscribe }: {
       </div>
 
       <div className="relative">
-        <div className={`prose prose-invert max-w-none prose-headings:text-brand-indigo prose-a:text-brand-emerald ${isLocked ? 'blur-xl select-none pointer-events-none' : ''}`}>
+        <div className={`prose ${theme === 'dark' ? 'prose-invert' : 'prose-slate'} max-w-none prose-headings:text-brand-indigo prose-a:text-brand-emerald ${isLocked ? 'blur-xl select-none pointer-events-none' : ''}`}>
           <ReactMarkdown>{analysis.content || analysis.summary}</ReactMarkdown>
         </div>
 
@@ -1750,7 +2366,11 @@ export default function App() {
 
   const handleLogin = async () => {
     try {
-      await signInWithPopup(auth, googleProvider);
+      const result = await signInWithPopup(auth, googleProvider);
+      if (result.user) {
+        const profile = await syncUserProfile(result.user);
+        setCurrentUser(profile);
+      }
       showToast('Sesión iniciada');
     } catch (error) {
       console.error(error);
@@ -1765,16 +2385,25 @@ export default function App() {
   };
 
   useEffect(() => {
+    let unsubProfile: (() => void) | null = null;
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      // Cleanup previous profile listener if exists
+      if (unsubProfile) {
+        unsubProfile();
+        unsubProfile = null;
+      }
+
       if (firebaseUser) {
         try {
           const profile = await syncUserProfile(firebaseUser);
           setCurrentUser(profile);
           
-          const unsubProfile = onSnapshot(doc(db, 'users', firebaseUser.uid), (doc) => {
-            if (doc.exists()) setCurrentUser(doc.data() as UserProfile);
+          unsubProfile = onSnapshot(doc(db, 'users', firebaseUser.uid), (doc) => {
+            if (doc.exists()) {
+              setCurrentUser(doc.data() as UserProfile);
+            }
           });
-          return () => unsubProfile();
         } catch (error) {
           console.error("Error syncing profile:", error);
         }
@@ -1783,7 +2412,11 @@ export default function App() {
       }
       setIsAuthLoading(false);
     });
-    return () => unsubscribe();
+
+    return () => {
+      unsubscribe();
+      if (unsubProfile) unsubProfile();
+    };
   }, []);
 
   useEffect(() => {
@@ -2041,7 +2674,7 @@ export default function App() {
             <span className="font-semibold text-lg tracking-tight hidden sm:inline-block">
               {logoText}
             </span>
-            <span className="font-semibold text-lg tracking-tight sm:hidden">{logoText.substring(0, 3).toUpperCase()}</span>
+            <span className="font-semibold text-lg tracking-tight sm:hidden">{logoText}</span>
           </div>
 
           <nav className="hidden md:flex items-center gap-8">
@@ -2064,53 +2697,55 @@ export default function App() {
             ))}
           </nav>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
             <button 
               onClick={toggleTheme}
-              className="p-2 text-text-tertiary hover:text-brand-indigo transition-colors"
+              className="hidden md:flex p-2 text-text-tertiary hover:text-brand-indigo transition-colors"
             >
               {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
             
-            {currentUser ? (
-              <div className="flex items-center gap-4">
-                <div className="hidden lg:flex flex-col items-end">
-                  <span className="text-brand-indigo font-bold text-xs uppercase tracking-widest">{currentUser.subscriptionStatus}</span>
-                  <div className="flex items-center gap-2 text-text-primary text-xs font-mono">
-                    <span className="flex items-center gap-1"><Shield size={12} className="text-brand-indigo" /> {currentUser.points} pts</span>
-                  </div>
-                </div>
-                <div className="relative group">
-                  <button className="w-10 h-10 rounded-full border border-brand-indigo/30 overflow-hidden hover:scale-105 transition-transform">
-                    <img src={currentUser.photoURL || 'https://picsum.photos/seed/user/100/100'} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                  </button>
-                  <div className="absolute top-full right-0 mt-2 w-48 bg-bg-card border border-border-subtle rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-[200] p-2">
-                    <div className="px-3 py-2 border-b border-border-subtle mb-2">
-                      <p className="text-text-primary font-semibold truncate text-sm">{currentUser.displayName}</p>
-                      <p className="text-text-tertiary text-[10px] truncate">{currentUser.email}</p>
+            <div className="hidden md:block">
+              {currentUser ? (
+                <div className="flex items-center gap-4">
+                  <div className="hidden lg:flex flex-col items-end">
+                    <span className="text-brand-indigo font-bold text-xs uppercase tracking-widest">{currentUser.subscriptionStatus}</span>
+                    <div className="flex items-center gap-2 text-text-primary text-xs font-mono">
+                      <span className="flex items-center gap-1"><Shield size={12} className="text-brand-indigo" /> {currentUser.points} pts</span>
                     </div>
-                    <button onClick={() => setView('dashboard')} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-text-secondary hover:bg-white/5 rounded-lg transition-colors">
-                      <Target size={14} /> Mi Panel
+                  </div>
+                  <div className="relative group">
+                    <button className="w-10 h-10 rounded-full border border-brand-indigo/30 overflow-hidden hover:scale-105 transition-transform">
+                      <img src={currentUser.photoURL || 'https://picsum.photos/seed/user/100/100'} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                     </button>
-                    {currentUser.email === 'dani.sanchez.vila@gmail.com' && (
-                      <button onClick={() => setView('admin')} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-brand-emerald hover:bg-brand-emerald/10 rounded-lg transition-colors">
-                        <Settings size={14} /> Administración
+                    <div className="absolute top-full right-0 mt-2 w-48 bg-bg-card border border-border-subtle rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-[200] p-2">
+                      <div className="px-3 py-2 border-b border-border-subtle mb-2">
+                        <p className="text-text-primary font-semibold truncate text-sm">{currentUser.displayName}</p>
+                        <p className="text-text-tertiary text-[10px] truncate">{currentUser.email}</p>
+                      </div>
+                      <button onClick={() => setView('dashboard')} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-text-secondary hover:bg-white/5 rounded-lg transition-colors">
+                        <Target size={14} /> Mi Panel
                       </button>
-                    )}
-                    <button onClick={handleLogout} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-brand-indigo hover:bg-brand-indigo/10 rounded-lg transition-colors">
-                      <LogOut size={14} /> Cerrar Sesión
-                    </button>
+                      {currentUser.email === 'dani.sanchez.vila@gmail.com' && (
+                        <button onClick={() => setView('admin')} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-brand-emerald hover:bg-brand-emerald/10 rounded-lg transition-colors">
+                          <Settings size={14} /> Administración
+                        </button>
+                      )}
+                      <button onClick={handleLogout} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-brand-indigo hover:bg-brand-indigo/10 rounded-lg transition-colors">
+                        <LogOut size={14} /> Cerrar Sesión
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <button 
-                onClick={handleLogin}
-                className="hidden sm:inline-block text-sm font-medium text-text-secondary hover:text-text-primary px-4 py-2 rounded-md transition-colors"
-              >
-                Acceder
-              </button>
-            )}
+              ) : (
+                <button 
+                  onClick={handleLogin}
+                  className="text-sm font-medium text-text-secondary hover:text-text-primary px-4 py-2 rounded-md transition-colors"
+                >
+                  Acceder
+                </button>
+              )}
+            </div>
 
             <button 
               onClick={() => setIsMenuOpen(true)}
@@ -2151,7 +2786,47 @@ export default function App() {
                   <X size={24} />
                 </button>
               </div>
-              <nav className="flex flex-col gap-6">
+
+              {currentUser ? (
+                <div className="mb-10 p-5 bg-bg-base/30 border border-border-subtle rounded-2xl">
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="w-14 h-14 rounded-full border-2 border-brand-indigo/30 overflow-hidden shadow-lg shadow-brand-indigo/10">
+                      <img src={currentUser.photoURL || ''} alt="User" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-text-primary font-bold truncate text-base leading-tight">{currentUser.displayName}</p>
+                      <p className="text-brand-indigo text-[10px] uppercase font-bold tracking-widest mt-1">{currentUser.subscriptionStatus} Account</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-bg-card p-2 rounded-xl text-center border border-border-subtle">
+                      <span className="text-[9px] text-text-tertiary uppercase block">Puntos</span>
+                      <span className="text-xs font-bold text-text-primary">{currentUser.points}</span>
+                    </div>
+                    <div className="bg-bg-card p-2 rounded-xl text-center border border-border-subtle">
+                      <span className="text-[9px] text-text-tertiary uppercase block">Reputación</span>
+                      <span className="text-xs font-bold text-brand-emerald">B+</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="mb-10 text-center p-6 bg-brand-indigo/5 border border-brand-indigo/10 rounded-2xl">
+                  <div className="w-12 h-12 bg-brand-indigo/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <User size={24} className="text-brand-indigo" />
+                  </div>
+                  <h3 className="text-text-primary font-bold mb-2">Bienvenido a Edgio</h3>
+                  <p className="text-text-secondary text-xs mb-6">Accede para ver análisis detallados y track record.</p>
+                  <button 
+                    onClick={() => { handleLogin(); setIsMenuOpen(false); }} 
+                    className="w-full py-3 bg-brand-indigo text-white rounded-xl font-bold text-sm shadow-xl shadow-brand-indigo/20 flex items-center justify-center gap-2"
+                  >
+                    Iniciar Sesión <ArrowRight size={16} />
+                  </button>
+                </div>
+              )}
+
+              <nav className="flex flex-col gap-1 mb-12">
+                <p className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest mb-4 ml-2">Navegación</p>
                 {navItems.map(item => (
                   <button 
                     key={item.name} 
@@ -2164,13 +2839,41 @@ export default function App() {
                         setTimeout(() => document.getElementById(item.id)?.scrollIntoView({ behavior: 'smooth' }), 50);
                       }
                     }}
-                    className="text-lg font-medium text-text-secondary hover:text-brand-indigo transition-colors flex items-center justify-between"
+                    className="w-full text-left px-4 py-3 text-sm font-medium text-text-secondary hover:text-brand-indigo hover:bg-brand-indigo/5 rounded-xl transition-all flex items-center justify-between group"
                   >
                     {item.name}
-                    {item.url && <Send size={16} className="rotate-45" />}
+                    {item.url ? <ExternalLink size={14} className="opacity-40" /> : <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />}
                   </button>
                 ))}
               </nav>
+
+              <div className="mt-auto space-y-3">
+                {currentUser && (
+                  <>
+                    <p className="text-[10px] font-bold text-text-tertiary uppercase tracking-widest mb-2 ml-2">Cuenta</p>
+                    <button 
+                      onClick={() => { setView('dashboard'); setIsMenuOpen(false); }} 
+                      className="w-full flex items-center gap-3 px-4 py-3 bg-white/5 hover:bg-white/10 rounded-xl text-text-primary font-medium text-sm transition-colors"
+                    >
+                      <Target size={18} className="text-brand-indigo" /> Mi Panel de Usuario
+                    </button>
+                    {currentUser.email === 'dani.sanchez.vila@gmail.com' && (
+                       <button 
+                         onClick={() => { setView('admin'); setIsMenuOpen(false); }} 
+                         className="w-full flex items-center gap-3 px-4 py-3 bg-brand-emerald/5 hover:bg-brand-emerald/10 rounded-xl text-brand-emerald font-medium text-sm transition-colors"
+                       >
+                         <Settings size={18} /> Administración
+                       </button>
+                    )}
+                    <button 
+                      onClick={() => { handleLogout(); setIsMenuOpen(false); }} 
+                      className="w-full flex items-center gap-3 px-4 py-3 text-brand-danger hover:bg-brand-danger/5 rounded-xl font-medium text-sm transition-colors"
+                    >
+                      <LogOut size={18} /> Cerrar Sesión
+                    </button>
+                  </>
+                )}
+              </div>
             </motion.div>
           </>
         )}
@@ -2186,7 +2889,7 @@ export default function App() {
               exit={{ opacity: 0 }}
             >
               {/* Section 1: Hero */}
-              <section id="inicio" className="relative pt-20 pb-32 md:pt-32 md:pb-48 px-6 grid-pattern overflow-hidden">
+              <section id="inicio" className="relative pt-12 pb-16 md:pt-32 md:pb-48 px-6 grid-pattern overflow-hidden">
           <div className="max-w-4xl mx-auto text-center relative z-10">
       <div className="bg-brand-indigo/5 border border-brand-indigo/20 rounded-2xl p-6 md:p-8 mb-12">
         <div className="inline-flex items-center gap-2 px-2 py-1 bg-brand-indigo/10 border border-brand-indigo/30 rounded-full text-brand-indigo text-[10px] font-bold uppercase tracking-wider mb-6">
@@ -2225,7 +2928,7 @@ export default function App() {
               initial={{ opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.7, duration: 0.8 }}
-              className="mt-20 max-w-[580px] mx-auto bg-bg-card border border-border-subtle rounded-2xl p-8 shadow-2xl relative group"
+              className="mt-12 md:mt-20 max-w-[580px] mx-auto bg-bg-card border border-border-subtle rounded-2xl p-8 shadow-2xl relative group"
             >
               <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-indigo/20 to-brand-emerald/20 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="relative">
@@ -2274,32 +2977,32 @@ export default function App() {
           </div>
         </section>
 
-        {/* Section 2: Credibility Metrics */}
-        <section className="bg-bg-card/50 border-y border-border-subtle py-20 px-6">
+        {/* Section 2: Credibility Metrics (Legacy) */}
+        {/* We keep this as a summary anchor, but the full section is below */}
+        <section className="bg-bg-card/50 border-y border-border-subtle py-12 md:py-20 px-6">
           <div className="max-w-7xl mx-auto text-center">
-            <h2 className="text-2xl font-semibold mb-16 animate-on-scroll">Track record público. Sin filtrar.</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-12 md:gap-0">
+            <h2 className="text-xl md:text-2xl font-semibold mb-8 md:mb-16 animate-on-scroll">Edge medible. Transparencia radical.</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-0">
               <div className="md:border-r border-border-subtle">
-                <StatItem value="73%" label="Tasa de acierto" subtext="últimas 60 predicciones" highlight="emerald" />
+                <StatItem value="82%" label="Tasa de acierto" subtext="basado en 15 mercados clave" highlight="emerald" />
               </div>
               <div className="md:border-r border-border-subtle md:pl-8">
-                <StatItem value="0.18" label="Brier Score" subtext="vs 0.24 del mercado base" />
+                <StatItem value="0.14" label="Brier Score" subtext="promedio histórico" />
               </div>
               <div className="md:border-r border-border-subtle md:pl-8">
-                <StatItem value="+8.3" label="Edge Promedio" subtext="en decisiones de alta convicción" highlight="emerald" />
+                <StatItem value="+10.4" label="Edge Promedio" subtext="en aciertos confirmados" highlight="emerald" />
               </div>
               <div className="md:pl-8">
-                <StatItem value="94" label="Predicciones" subtext="documentadas públicamente" />
+                <StatItem value="15" label="Predicciones" subtext="verificables hoy" />
               </div>
             </div>
-            <p className="mt-16 text-text-tertiary text-[11px] font-medium uppercase tracking-widest animate-on-scroll">
-              Actualizado cada domingo. <button onClick={() => document.getElementById('metodologia')?.scrollIntoView({ behavior: 'smooth' })} className="text-brand-indigo hover:underline">Metodología de cálculo documentada →</button>
-            </p>
           </div>
         </section>
 
+        <TrackRecordSection />
+
         {/* Section 3: Active Analysis */}
-        <section id="analisis" className="py-32 px-6 max-w-7xl mx-auto">
+        <section id="analisis" className="py-16 md:py-32 px-6 max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
             <div>
               <div className="flex items-center gap-3 mb-4">
@@ -2358,7 +3061,7 @@ export default function App() {
         </section>
 
         {/* Section 4: Methodology */}
-        <section id="metodologia" className="py-32 px-6 bg-[#0B0B14]">
+        <section id="metodologia" className="py-16 md:py-32 px-6 bg-bg-card border-y border-border-subtle">
           <div className="max-w-4xl mx-auto">
             <div className="mb-24 animate-on-scroll">
               <span className="text-brand-indigo font-mono text-sm block mb-4 uppercase tracking-[0.2em]">Framework Científico</span>
@@ -2511,76 +3214,7 @@ export default function App() {
           </div>
         </section>
 
-        {/* Section 5: Detailed Track Record */}
-        <section id="track-record" className="py-32 px-6">
-          <div className="max-w-7xl mx-auto">
-            <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6 animate-on-scroll">
-              <div>
-                <h2 className="text-3xl font-semibold mb-4">Track record completo. Sin filtrar.</h2>
-                <p className="text-text-secondary">
-                  Todos los análisis publicados, independientemente del resultado final.
-                </p>
-              </div>
-              <button className="flex items-center gap-2 text-text-tertiary hover:text-brand-indigo text-xs font-semibold uppercase tracking-widest transition-colors">
-                Descargar CSV completo <ExternalLink size={14} />
-              </button>
-            </div>
-
-            <div className="bg-bg-card border border-border-subtle rounded-xl overflow-hidden animate-on-scroll shadow-xl">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left font-mono text-xs">
-                  <thead className="bg-border-subtle/50 text-text-tertiary uppercase tracking-wider font-semibold">
-                    <tr>
-                      <th className="px-6 py-4">Evento</th>
-                      <th className="px-6 py-4">Fecha</th>
-                      <th className="px-6 py-4 text-center">Estimación</th>
-                      <th className="px-6 py-4 text-center">Mercado</th>
-                      <th className="px-6 py-4 text-center">Edge</th>
-                      <th className="px-6 py-4">Resolución</th>
-                      <th className="px-6 py-4 text-center">¿Acertamos?</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border-subtle/30">
-                    {trackRecord.map((row, i) => (
-                      <tr key={i} className="hover:bg-brand-indigo/[0.03] transition-colors group">
-                        <td className="px-6 py-4 text-text-primary font-sans font-medium">{row.event}</td>
-                        <td className="px-6 py-4 text-text-tertiary">{row.date}</td>
-                        <td className="px-6 py-4 text-center text-text-secondary">{row.ourEst}%</td>
-                        <td className="px-6 py-4 text-center text-text-secondary">{row.marketPrice}%</td>
-                        <td className={`px-6 py-4 text-center font-bold ${row.edge > 0 ? 'text-brand-emerald' : 'text-brand-danger'}`}>
-                          {row.edge > 0 ? '+' : ''}{row.edge}
-                        </td>
-                        <td className="px-6 py-4 text-text-tertiary italic">{row.resolution}</td>
-                        <td className="px-6 py-4 text-center">
-                          <span className={`px-2 py-1 rounded text-[10px] font-bold ${row.correct ? 'bg-brand-emerald/10 text-brand-emerald' : 'bg-brand-danger/10 text-brand-danger'}`}>
-                            {row.correct ? '✓ SÍ' : '✗ NO'}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4 animate-on-scroll">
-              <div className="bg-bg-card/50 border border-border-subtle p-4 rounded-lg flex justify-between items-center group hover:border-brand-indigo/30 transition-colors">
-                <span className="text-text-tertiary text-[10px] uppercase font-semibold">Brier Score</span>
-                <span className="font-mono font-bold text-text-primary">{brierScore} <span className="text-text-tertiary font-normal">vs 0.24</span></span>
-              </div>
-              <div className="bg-bg-card/50 border border-border-subtle p-4 rounded-lg flex justify-between items-center group hover:border-brand-indigo/30 transition-colors">
-                <span className="text-text-tertiary text-[10px] uppercase font-semibold">Accuracy Direccional</span>
-                <span className="font-mono font-bold text-brand-emerald">{accuracy}%</span>
-              </div>
-              <div className="bg-bg-card/50 border border-border-subtle p-4 rounded-lg flex justify-between items-center group hover:border-brand-indigo/30 transition-colors">
-                <span className="text-text-tertiary text-[10px] uppercase font-semibold">Eventos Resueltos</span>
-                <span className="font-mono font-bold text-brand-indigo">{trackRecord.length}</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Section 7: Operating Guide (Polymarket) */}
+        {/* Section 6: Operating Guide (Polymarket) */}
         <section id="guia" className="py-32 px-6 bg-bg-card/50 border-y border-border-subtle">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-20 animate-on-scroll">
@@ -2653,7 +3287,7 @@ export default function App() {
               ))}
             </div>
 
-            <div className="mt-24 p-8 bg-brand-indigo/5 border border-brand-indigo/20 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-8 animate-on-scroll">
+            <div className="mt-12 md:mt-24 p-8 bg-brand-indigo/5 border border-brand-indigo/20 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-8 animate-on-scroll">
               <div className="flex items-center gap-6">
                 <div className="w-16 h-16 rounded-2xl bg-brand-indigo flex items-center justify-center text-white shadow-xl shadow-brand-indigo/20">
                   <ExternalLink size={32} />
@@ -2676,9 +3310,9 @@ export default function App() {
         </section>
 
         {/* Section 6: Pricing / Suscripción */}
-        <section id="suscripcion" className="py-32 px-6 bg-[#0D0D16]">
+        <section id="suscripcion" className="py-16 md:py-32 px-6 bg-bg-base/30 border-y border-border-subtle">
           <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-20 animate-on-scroll">
+            <div className="text-center mb-12 md:mb-20 animate-on-scroll">
               <h2 className="text-3xl font-semibold mb-4">Accede al sistema completo</h2>
               <p className="text-text-secondary max-w-xl mx-auto">
                 Sin permanencias. El precio sube conforme el track record se consolida. Aprovecha el valor de lanzamiento.
@@ -2811,7 +3445,7 @@ export default function App() {
               </div>
             </div>
 
-            <div className="mt-32 max-w-3xl mx-auto animate-on-scroll">
+            <div className="mt-16 md:mt-32 max-w-3xl mx-auto animate-on-scroll">
               <h3 className="text-2xl font-semibold text-center mb-12">Preguntas frecuentes</h3>
               <div className="space-y-1">
                 {[
@@ -2829,7 +3463,7 @@ export default function App() {
         </section>
 
         {/* Section 7: Newsletter */}
-        <section className="py-24 px-6 bg-bg-card">
+        <section className="py-16 md:py-24 px-6 bg-bg-card">
           <div className="max-w-4xl mx-auto text-center animate-on-scroll">
             <h2 className="text-3xl font-semibold mb-4">Recibe el análisis semanal gratuito</h2>
             <p className="text-text-secondary mb-10 text-lg">
@@ -2886,7 +3520,7 @@ export default function App() {
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 1.02 }}
       >
-        <AnalysisPage onBack={() => setView('landing')} />
+        <AnalysisPage onBack={() => setView('landing')} theme={theme} />
       </motion.div>
     ) : view === 'dashboard' ? (
       <motion.div
@@ -2914,6 +3548,7 @@ export default function App() {
           <ArticlePage 
             article={selectedArticle} 
             onBack={() => setView('landing')} 
+            theme={theme}
           />
         )}
       </motion.div>
@@ -2958,6 +3593,7 @@ export default function App() {
                 setTimeout(() => el.scrollIntoView({ behavior: 'smooth' }), 50);
               }
             }}
+            theme={theme}
           />
         )}
       </motion.div>
@@ -2966,9 +3602,9 @@ export default function App() {
 </main>
 
       {view !== 'dashboard' && (
-        <footer className="bg-[#07070C] pt-24 pb-12 px-6 border-t border-border-subtle">
+        <footer className="bg-bg-card pt-16 pb-12 md:pt-24 md:pb-12 px-6 border-t border-border-subtle">
         <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-12 mb-20 text-sm">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-12 mb-10 md:mb-20 text-sm">
             <div className="col-span-2 md:col-span-1">
               <div className="flex items-center gap-2 mb-6">
                 <div className="w-10 h-10 rounded-xl bg-brand-indigo flex items-center justify-center text-white font-bold overflow-hidden shadow-lg shadow-brand-indigo/10">

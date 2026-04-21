@@ -53,9 +53,11 @@ import {
   LineElement,
   Tooltip,
   Legend,
-  ScatterController
+  ScatterController,
+  LineController,
+  CategoryScale
 } from 'chart.js';
-import { Scatter } from 'react-chartjs-2';
+import { Scatter, Line } from 'react-chartjs-2';
 import { 
   auth, 
   googleProvider, 
@@ -72,7 +74,7 @@ import {
 import { doc, onSnapshot, updateDoc, serverTimestamp, collection, query, orderBy, setDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
-ChartJS.register(LinearScale, PointElement, LineElement, Tooltip, Legend, ScatterController);
+ChartJS.register(LinearScale, PointElement, LineElement, Tooltip, Legend, ScatterController, LineController, CategoryScale);
 
 import ReactMarkdown from 'react-markdown';
 
@@ -234,7 +236,7 @@ const TrackRecordSection = () => {
             </div>
             
             <div className="grid grid-cols-2 md:flex gap-6">
-              <div className="bg-bg-card border border-border-subtle p-6 rounded-2xl min-w-[140px] group hover:border-brand-indigo/50 transition-colors">
+                  <div className="bg-bg-card border border-border-subtle p-6 rounded-2xl min-w-[140px] group hover:border-brand-indigo/50 transition-colors">
                 <span className="text-[10px] text-text-tertiary uppercase font-bold tracking-widest block mb-2">Tasa de acierto</span>
                 <span className="text-4xl font-mono font-bold text-brand-emerald">{stats.accuracy}</span>
               </div>
@@ -247,7 +249,7 @@ const TrackRecordSection = () => {
                 <span className="text-4xl font-mono font-bold text-brand-emerald">{stats.avgEdge}</span>
               </div>
               <div className="bg-bg-card border border-border-subtle p-6 rounded-2xl min-w-[140px] group hover:border-brand-indigo/50 transition-colors">
-                <span className="text-[10px] text-text-tertiary uppercase font-bold tracking-widest block mb-2">Predicciones</span>
+                <span className="text-[10px] text-text-tertiary uppercase font-bold tracking-widest block mb-1">Predicciones</span>
                 <span className="text-4xl font-mono font-bold text-brand-indigo">{stats.total}</span>
               </div>
             </div>
@@ -345,7 +347,7 @@ const TrackRecordSection = () => {
                       <p className="text-sm font-medium text-text-primary line-clamp-2">{item.evento}</p>
                     </td>
                     <td className="px-6 py-6">
-                      <span className="px-2 py-1 bg-white/5 border border-white/10 rounded text-[10px] font-bold text-text-secondary">{item.categoria}</span>
+                      <span className="px-2 py-1 bg-brand-indigo/5 border border-brand-indigo/10 rounded text-[10px] font-bold text-text-secondary">{item.categoria}</span>
                     </td>
                     <td className="px-6 py-6 whitespace-nowrap">
                       <div className="flex flex-col">
@@ -368,7 +370,7 @@ const TrackRecordSection = () => {
                     <td className="px-6 py-6">
                       <div className="flex gap-0.5">
                         {[...Array(10)].map((_, i) => (
-                          <div key={i} className={`w-2 h-2 rounded-full ${i < item.conviccion ? 'bg-brand-indigo shadow-[0_0_5px_rgba(99,102,241,0.5)]' : 'bg-white/10'}`} />
+                          <div key={i} className={`w-2 h-2 rounded-full ${i < item.conviccion ? 'bg-brand-indigo shadow-[0_0_5px_rgba(99,102,241,0.5)]' : 'bg-text-tertiary/20'}`} />
                         ))}
                       </div>
                     </td>
@@ -443,7 +445,7 @@ const TrackRecordSection = () => {
                   </div>
                   <div className="flex gap-0.5">
                     {[...Array(10)].map((_, i) => (
-                      <div key={i} className={`w-1.5 h-1.5 rounded-full ${i < item.conviccion ? 'bg-brand-indigo' : 'bg-white/10'}`} />
+                      <div key={i} className={`w-1.5 h-1.5 rounded-full ${i < item.conviccion ? 'bg-brand-indigo' : 'bg-text-tertiary/20'}`} />
                     ))}
                   </div>
                 </div>
@@ -1402,18 +1404,16 @@ const CheckoutPage = ({ plan, onBack, user, onLogin, showToast }: { plan: Plan, 
                         const res = await fetch("/api/create-checkout-session", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ userId: user.uid, plan: plan.id })
+                          body: JSON.stringify({ uid: user.uid, plan: plan.id })
                         });
 
                         const data = await res.json();
 
-                        console.log(data);
-
                         if (data.url) {
                           window.location.href = data.url;
                         } else {
-                          console.error("No URL returned");
-                          showToast("Error: No se pudo generar la sesión de pago.");
+                          console.error("Stripe error response:", data);
+                          showToast(`Error: ${data.error || "No se pudo generar la sesión de pago."}`);
                         }
                       } catch (e: any) {
                         console.error("Checkout error:", e);
@@ -2402,25 +2402,25 @@ export default function App() {
       x: {
         min: 0,
         max: 100,
-        grid: { color: '#1E1E2E' },
-        ticks: { color: '#94A3B8', font: { family: 'JetBrains Mono' } },
-        title: { display: true, text: 'Probabilidad Estimada (%)', color: '#475569' }
+        grid: { color: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' },
+        ticks: { color: theme === 'dark' ? '#94A3B8' : '#64748B', font: { family: 'JetBrains Mono' } },
+        title: { display: true, text: 'Probabilidad Estimada (%)', color: theme === 'dark' ? '#64748B' : '#94A3B8' }
       },
       y: {
         min: 0,
         max: 100,
-        grid: { color: '#1E1E2E' },
-        ticks: { color: '#94A3B8', font: { family: 'JetBrains Mono' } },
-        title: { display: true, text: 'Frecuencia Real (%)', color: '#475569' }
+        grid: { color: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' },
+        ticks: { color: theme === 'dark' ? '#94A3B8' : '#64748B', font: { family: 'JetBrains Mono' } },
+        title: { display: true, text: 'Frecuencia Real (%)', color: theme === 'dark' ? '#64748B' : '#94A3B8' }
       }
     },
     plugins: {
       legend: { display: false },
       tooltip: {
-        backgroundColor: '#111118',
-        titleColor: '#F1F5F9',
-        bodyColor: '#94A3B8',
-        borderColor: '#1E1E2E',
+        backgroundColor: theme === 'dark' ? '#111118' : '#FFFFFF',
+        titleColor: theme === 'dark' ? '#F1F5F9' : '#0F172A',
+        bodyColor: theme === 'dark' ? '#94A3B8' : '#334155',
+        borderColor: theme === 'dark' ? '#1E1E2E' : '#E2E8F0',
         borderWidth: 1,
         padding: 12,
         displayColors: false
@@ -2434,6 +2434,15 @@ export default function App() {
   };
 
   const handleSubscribePlan = (plan: Plan) => {
+    if (plan.id === 'free') {
+      if (!currentUser) {
+        setAuthMode('signup');
+        setShowAuthModal(true);
+      } else {
+        showToast("Ya eres miembro de Edgio (Plan Lector)");
+      }
+      return;
+    }
     setSelectedPlan(plan);
     setView('checkout');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2463,7 +2472,7 @@ export default function App() {
 
     document.querySelectorAll('.animate-on-scroll').forEach(el => observer.observe(el));
     return () => observer.disconnect();
-  }, []);
+  }, [view]);
 
   const navItems = [
     { name: 'Análisis', id: 'analisis' },
@@ -2507,9 +2516,10 @@ export default function App() {
               animate={{ opacity: 1, x: 0 }}
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
-              src={theme === 'dark' ? "/logo-dark.svg" : "/logo-light.svg"} 
+              src={logoUrl || (theme === 'dark' ? "/logo-dark.svg" : "/logo-light.svg")} 
               alt="Edgio" 
               className="h-8 md:h-10 w-auto object-contain transition-all"
+              referrerPolicy="no-referrer"
             />
           </div>
 
@@ -3461,10 +3471,14 @@ export default function App() {
             <div className="col-span-2 md:col-span-1">
               <div className="flex items-center gap-2 mb-6">
                 <motion.img 
-                  whileHover={{ rotate: [-1, 1, -1, 1, 0], scale: 1.02 }}
-                  src={theme === 'dark' ? "/logo-dark.svg" : "/logo-light.svg"} 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.8 }}
+                  whileHover={{ scale: 1.05, filter: "brightness(1.1)" }}
+                  src={logoUrl || (theme === 'dark' ? "/logo-dark.svg" : "/logo-light.svg")} 
                   alt="Edgio" 
-                  className="h-10 md:h-12 w-auto object-contain"
+                  className="h-8 md:h-10 w-auto object-contain cursor-pointer"
+                  referrerPolicy="no-referrer"
                 />
               </div>
               <p className="text-text-secondary leading-relaxed mb-8 max-w-xs">

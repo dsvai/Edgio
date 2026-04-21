@@ -51,6 +51,10 @@ export default async function handler(req: any, res: any) {
     },
   };
 
+  if (!prices[plan]) {
+    return res.status(400).json({ error: `Invalid plan: ${plan}` });
+  }
+
   try {
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],

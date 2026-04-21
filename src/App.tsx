@@ -56,8 +56,19 @@ import {
   ScatterController
 } from 'chart.js';
 import { Scatter } from 'react-chartjs-2';
-import { auth, googleProvider, syncUserProfile, UserProfile, db, storage } from './lib/firebase';
-import { signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth';
+import { 
+  auth, 
+  googleProvider, 
+  syncUserProfile, 
+  UserProfile, 
+  db, 
+  storage,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signOut,
+  onAuthStateChanged
+} from './lib/firebase';
 import { doc, onSnapshot, updateDoc, serverTimestamp, collection, query, orderBy, setDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
@@ -2120,6 +2131,12 @@ export default function App() {
   const [toast, setToast] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [view, setView] = useState<'landing' | 'checkout' | 'article' | 'dashboard' | 'analysis' | 'admin' | 'analysis-detail'>('landing');
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [selectedArticle, setSelectedArticle] = useState<AcademyArticle | null>(null);
@@ -2143,17 +2160,58 @@ export default function App() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const handleLogin = async () => {
+  const handleGoogleLogin = async () => {
     try {
+      setAuthLoading(true);
       const result = await signInWithPopup(auth, googleProvider);
       if (result.user) {
         const profile = await syncUserProfile(result.user);
         setCurrentUser(profile);
+        setShowAuthModal(false);
+        showToast('Sesión iniciada con Google');
       }
-      showToast('Sesión iniciada');
     } catch (error) {
       console.error(error);
-      showToast('Error al iniciar sesión');
+      showToast('Error al iniciar sesión con Google');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleEmailAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    setAuthError(null);
+
+    try {
+      let result;
+      if (authMode === 'signup') {
+        result = await createUserWithEmailAndPassword(auth, authEmail, authPassword);
+      } else {
+        result = await signInWithEmailAndPassword(auth, authEmail, authPassword);
+      }
+
+      const profile = await syncUserProfile(result.user);
+      setCurrentUser(profile);
+      setShowAuthModal(false);
+      setAuthEmail('');
+      setAuthPassword('');
+      showToast(authMode === 'signup' ? 'Cuenta creada con éxito' : 'Sesión iniciada');
+    } catch (error: any) {
+      console.error(error);
+      if (error.code === 'auth/email-already-in-use') {
+        setAuthError('Este email ya está registrado. Intenta iniciar sesión.');
+      } else if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+        setAuthError('Credenciales incorrectas.');
+      } else if (error.code === 'auth/weak-password') {
+        setAuthError('La contraseña debe tener al menos 6 caracteres.');
+      } else if (error.code === 'auth/operation-not-allowed') {
+        setAuthError('El inicio de sesión con email no está habilitado en Firebase. Contacta con el administrador.');
+      } else {
+        setAuthError('Ocurrió un error. Inténtalo de nuevo.');
+      }
+    } finally {
+      setAuthLoading(false);
     }
   };
 
@@ -2516,12 +2574,20 @@ export default function App() {
                   </div>
                 </div>
               ) : (
-                <button 
-                  onClick={handleLogin}
-                  className="text-sm font-medium text-text-secondary hover:text-text-primary px-4 py-2 rounded-md transition-colors"
-                >
-                  Acceder
-                </button>
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => { setAuthMode('signup'); setShowAuthModal(true); }}
+                    className="text-sm font-bold text-brand-indigo px-4 py-2 rounded-xl border border-brand-indigo/20 hover:bg-brand-indigo/5 transition-all"
+                  >
+                    Crear cuenta
+                  </button>
+                  <button 
+                    onClick={() => { setAuthMode('login'); setShowAuthModal(true); }}
+                    className="text-sm font-bold bg-brand-indigo text-white px-5 py-2 rounded-xl shadow-lg shadow-brand-indigo/20 hover:brightness-110 transition-all"
+                  >
+                    Acceder
+                  </button>
+                </div>
               )}
             </div>
 
@@ -2595,12 +2661,20 @@ export default function App() {
                   </div>
                   <h3 className="text-text-primary font-bold mb-2">Bienvenido a Edgio</h3>
                   <p className="text-text-secondary text-xs mb-6">Accede para ver análisis detallados y track record.</p>
-                  <button 
-                    onClick={() => { handleLogin(); setIsMenuOpen(false); }} 
-                    className="w-full py-3 bg-brand-indigo text-white rounded-xl font-bold text-sm shadow-xl shadow-brand-indigo/20 flex items-center justify-center gap-2"
-                  >
-                    Iniciar Sesión <ArrowRight size={16} />
-                  </button>
+                  <div className="flex flex-col gap-3">
+                    <button 
+                      onClick={() => { setAuthMode('signup'); setShowAuthModal(true); setIsMenuOpen(false); }} 
+                      className="w-full py-4 bg-brand-indigo text-white rounded-xl font-bold text-sm shadow-xl shadow-brand-indigo/20 flex items-center justify-center gap-2"
+                    >
+                      <User size={16} /> Crear mi cuenta
+                    </button>
+                    <button 
+                      onClick={() => { setAuthMode('login'); setShowAuthModal(true); setIsMenuOpen(false); }} 
+                      className="w-full py-4 bg-bg-base border border-border-subtle text-text-primary rounded-xl font-bold text-sm flex items-center justify-center gap-2"
+                    >
+                      <Lock size={16} /> Iniciar sesión
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -3286,7 +3360,7 @@ export default function App() {
           <CheckoutPage 
             plan={selectedPlan} 
             user={currentUser}
-            onLogin={handleLogin}
+            onLogin={() => { setAuthMode('login'); setShowAuthModal(true); }}
             showToast={showToast}
             onBack={() => setView('landing')} 
           />
@@ -3463,6 +3537,119 @@ export default function App() {
         </div>
       </footer>
       )}
+
+      {/* Auth Modal */}
+      <AnimatePresence>
+        {showAuthModal && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowAuthModal(false)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-md"
+            />
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="relative w-full max-w-md bg-bg-card border border-border-subtle rounded-3xl shadow-2xl overflow-hidden p-8"
+            >
+              <button 
+                onClick={() => setShowAuthModal(false)}
+                className="absolute top-4 right-4 p-2 text-text-tertiary hover:text-text-primary transition-colors"
+              >
+                <X size={20} />
+              </button>
+
+              <div className="text-center mb-8">
+                <motion.div 
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="w-16 h-16 bg-brand-indigo/10 rounded-2xl flex items-center justify-center mx-auto mb-4"
+                >
+                  <Lock size={32} className="text-brand-indigo" />
+                </motion.div>
+                <h2 className="text-2xl font-bold text-text-primary">
+                  {authMode === 'login' ? 'Bienvenido de nuevo' : 'Crea tu cuenta'}
+                </h2>
+                <p className="text-text-secondary text-sm mt-2">
+                  {authMode === 'login' ? 'Entra para ver tus análisis guardados.' : 'Únete a la élite de los mercados de predicción.'}
+                </p>
+              </div>
+
+              <form onSubmit={handleEmailAuth} className="space-y-4 mb-6">
+                <div>
+                  <label className="block text-[10px] text-text-tertiary uppercase font-bold tracking-widest mb-2 ml-1">Email</label>
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-text-tertiary" size={18} />
+                    <input 
+                      type="email"
+                      required
+                      value={authEmail}
+                      onChange={(e) => setAuthEmail(e.target.value)}
+                      className="w-full bg-bg-base border border-border-subtle rounded-xl py-4 pl-12 pr-4 text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-indigo/50 transition-all font-mono text-sm"
+                      placeholder="tu@email.com"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] text-text-tertiary uppercase font-bold tracking-widest mb-2 ml-1">Contraseña</label>
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-text-tertiary" size={18} />
+                    <input 
+                      type="password"
+                      required
+                      value={authPassword}
+                      onChange={(e) => setAuthPassword(e.target.value)}
+                      className="w-full bg-bg-base border border-border-subtle rounded-xl py-4 pl-12 pr-4 text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-indigo/50 transition-all font-mono text-sm"
+                      placeholder="••••••••"
+                    />
+                  </div>
+                </div>
+
+                {authError && (
+                  <div className="flex items-center gap-2 p-4 bg-brand-danger/10 border border-brand-danger/20 rounded-xl text-brand-danger text-xs font-medium">
+                    <AlertCircle size={14} />
+                    {authError}
+                  </div>
+                )}
+
+                <button 
+                  type="submit"
+                  disabled={authLoading}
+                  className="w-full py-4 bg-brand-indigo text-white rounded-xl font-bold shadow-xl shadow-brand-indigo/20 hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {authLoading ? <Loader2 size={18} className="animate-spin" /> : (authMode === 'login' ? 'Iniciar Sesión' : 'Registrarse')}
+                </button>
+              </form>
+
+              <div className="relative mb-6">
+                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border-subtle"></div></div>
+                <div className="relative flex justify-center text-xs uppercase"><span className="bg-bg-card px-3 text-text-tertiary font-bold tracking-widest">o</span></div>
+              </div>
+
+              <button 
+                onClick={handleGoogleLogin}
+                disabled={authLoading}
+                className="w-full py-4 bg-bg-card border border-border-subtle text-text-primary rounded-xl font-bold flex items-center justify-center gap-3 hover:bg-bg-base transition-colors"
+              >
+                <img src="https://www.google.com/favicon.ico" className="w-5 h-5" alt="Google" referrerPolicy="no-referrer" />
+                Continuar con Google
+              </button>
+
+              <div className="mt-8 text-center">
+                <button 
+                  onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')}
+                  className="text-sm font-medium text-text-tertiary hover:text-brand-indigo transition-colors"
+                >
+                  {authMode === 'login' ? '¿No tienes cuenta? Regístrate gratis' : '¿Ya tienes cuenta? Inicia sesión'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

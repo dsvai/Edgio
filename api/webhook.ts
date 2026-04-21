@@ -1,6 +1,6 @@
 import Stripe from 'stripe';
 import { initializeApp, getApps } from 'firebase-admin/app';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { getFirestore } from 'firebase-admin/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 import { Readable } from 'stream';
 
@@ -52,43 +52,53 @@ export default async function handler(req: any, res: any) {
 
   try {
     switch (event.type) {
-      case 'checkout.session.completed': {
+      case "checkout.session.completed": {
         const session: any = event.data.object;
-        const userId = session.metadata?.userId;
-        const plan = session.metadata?.plan;
+        const uid = session.metadata?.uid;
+        const plan = session.metadata?.plan || "pro";
 
-        if (userId && plan) {
-          await db.collection('users').doc(userId).update({
+        if (uid) {
+          await db.collection("users").doc(uid).update({
             subscriptionStatus: plan,
-            updatedAt: FieldValue.serverTimestamp()
+            plan: plan, // Including both for compatibility and request
+            updatedAt: new Date(),
           });
-          console.log(`✅ User ${userId} upgraded to ${plan}`);
+          console.log(`✅ User ${uid} upgraded to PRO`);
         }
         break;
       }
-      case 'customer.subscription.updated': {
+      case "customer.subscription.updated": {
         const subscription: any = event.data.object;
-        const userId = subscription.metadata?.userId;
+        const uid = subscription.metadata?.uid;
         const status = subscription.status;
+        const plan = subscription.metadata?.plan || "pro";
 
-        if (userId) {
-          await db.collection('users').doc(userId).update({
-            subscriptionStatus: status === 'active' ? (subscription.metadata?.plan || 'pro') : 'free',
-            updatedAt: FieldValue.serverTimestamp()
+        if (uid) {
+          const newStatus = status === "active" ? plan : "free";
+          await db.collection("users").doc(uid).update({
+            subscriptionStatus: newStatus,
+            plan: newStatus,
+            updatedAt: new Date(),
           });
+          if (newStatus !== "free") {
+            console.log(`✅ User ${uid} upgraded to PRO`);
+          } else {
+            console.log(`❌ User ${uid} downgraded to FREE`);
+          }
         }
         break;
       }
-      case 'customer.subscription.deleted': {
+      case "customer.subscription.deleted": {
         const subscription: any = event.data.object;
-        const userId = subscription.metadata?.userId;
+        const uid = subscription.metadata?.uid;
 
-        if (userId) {
-          await db.collection('users').doc(userId).update({
-            subscriptionStatus: 'free',
-            updatedAt: FieldValue.serverTimestamp()
+        if (uid) {
+          await db.collection("users").doc(uid).update({
+            subscriptionStatus: "free",
+            plan: "free",
+            updatedAt: new Date(),
           });
-          console.log(`❌ User ${userId} subscription cancelled`);
+          console.log(`❌ User ${uid} downgraded to FREE`);
         }
         break;
       }

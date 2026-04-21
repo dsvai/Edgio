@@ -18,50 +18,50 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { userId, plan } = req.body;
+  const { uid, plan } = req.body;
 
-  if (!userId || !plan) {
-    return res.status(400).json({ error: 'Missing userId or plan' });
+  if (!uid || !plan) {
+    return res.status(400).json({ error: "Missing uid or plan" });
   }
 
   const prices: Record<string, any> = {
     pro: {
       price_data: {
-        currency: 'eur',
+        currency: "eur",
         product_data: {
-          name: 'Edgio PRO - Mensual',
-          description: 'Suscripción mensual con acceso completo a análisis premium',
+          name: "Edgio PRO - Mensual",
+          description: "Suscripción mensual con acceso completo a análisis premium",
         },
         unit_amount: 2900,
-        recurring: { interval: 'month' },
+        recurring: { interval: "month" },
       },
       quantity: 1,
     },
     annual: {
       price_data: {
-        currency: 'eur',
+        currency: "eur",
         product_data: {
-          name: 'Edgio ANNUAL - Suscripción Anual',
-          description: 'Un año completo de Edgio con 2 meses de regalo',
+          name: "Edgio ANNUAL - Suscripción Anual",
+          description: "Un año completo de Edgio con 2 meses de regalo",
         },
         unit_amount: 29000,
-        recurring: { interval: 'year' },
+        recurring: { interval: "year" },
       },
       quantity: 1,
-    }
+    },
   };
 
   try {
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
+      payment_method_types: ["card"],
       line_items: [prices[plan]],
-      mode: 'subscription',
-      success_url: `${req.headers.origin || 'http://' + req.headers.host}/?payment=success`,
-      cancel_url: `${req.headers.origin || 'http://' + req.headers.host}/?payment=cancel`,
+      mode: "subscription",
+      success_url: `${req.headers.origin || "http://" + req.headers.host}/?payment=success`,
+      cancel_url: `${req.headers.origin || "http://" + req.headers.host}/?payment=cancel`,
       subscription_data: {
-        metadata: { userId, plan }
+        metadata: { uid, plan },
       },
-      metadata: { userId, plan }
+      metadata: { uid, plan },
     });
 
     res.status(200).json({

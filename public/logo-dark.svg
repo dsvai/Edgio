@@ -1,0 +1,5 @@
+<svg width="124" height="32" viewBox="0 0 124 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="32" height="32" rx="8" fill="#4F46E5"/>
+  <path d="M16 8L24 16L16 24L8 16L16 8Z" fill="white"/>
+  <text x="40" y="24" fill="white" style="font-family: 'Inter', system-ui, sans-serif; font-weight: 700; font-size: 20px;">Edgio</text>
+</svg>

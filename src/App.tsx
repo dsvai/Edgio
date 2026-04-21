@@ -212,7 +212,7 @@ const TrackRecordSection = () => {
   };
 
   return (
-    <section id="track-record" className="py-16 md:py-32 px-6 bg-[#0A0A0F]">
+    <section id="track-record" className="py-16 md:py-32 px-6 bg-bg-base">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-12 md:mb-20">
@@ -223,19 +223,19 @@ const TrackRecordSection = () => {
             </div>
             
             <div className="grid grid-cols-2 md:flex gap-6">
-              <div className="bg-[#111118] border border-border-subtle p-6 rounded-2xl min-w-[140px] group hover:border-brand-indigo/50 transition-colors">
+              <div className="bg-bg-card border border-border-subtle p-6 rounded-2xl min-w-[140px] group hover:border-brand-indigo/50 transition-colors">
                 <span className="text-[10px] text-text-tertiary uppercase font-bold tracking-widest block mb-2">Tasa de acierto</span>
                 <span className="text-4xl font-mono font-bold text-brand-emerald">{stats.accuracy}</span>
               </div>
-              <div className="bg-[#111118] border border-border-subtle p-6 rounded-2xl min-w-[140px] group hover:border-brand-indigo/50 transition-colors">
+              <div className="bg-bg-card border border-border-subtle p-6 rounded-2xl min-w-[140px] group hover:border-brand-indigo/50 transition-colors">
                 <span className="text-[10px] text-text-tertiary uppercase font-bold tracking-widest block mb-2">Brier Score</span>
                 <span className="text-4xl font-mono font-bold text-brand-indigo">{stats.brier}</span>
               </div>
-              <div className="bg-[#111118] border border-border-subtle p-6 rounded-2xl min-w-[140px] group hover:border-brand-indigo/50 transition-colors">
+              <div className="bg-bg-card border border-border-subtle p-6 rounded-2xl min-w-[140px] group hover:border-brand-indigo/50 transition-colors">
                 <span className="text-[10px] text-text-tertiary uppercase font-bold tracking-widest block mb-2">Edge Promedio</span>
                 <span className="text-4xl font-mono font-bold text-brand-emerald">{stats.avgEdge}</span>
               </div>
-              <div className="bg-[#111118] border border-border-subtle p-6 rounded-2xl min-w-[140px] group hover:border-brand-indigo/50 transition-colors">
+              <div className="bg-bg-card border border-border-subtle p-6 rounded-2xl min-w-[140px] group hover:border-brand-indigo/50 transition-colors">
                 <span className="text-[10px] text-text-tertiary uppercase font-bold tracking-widest block mb-2">Predicciones</span>
                 <span className="text-4xl font-mono font-bold text-brand-indigo">{stats.total}</span>
               </div>
@@ -255,7 +255,7 @@ const TrackRecordSection = () => {
                   className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                     filter === cat 
                       ? 'bg-brand-indigo text-white shadow-lg shadow-brand-indigo/20' 
-                      : 'bg-[#111118] text-text-secondary hover:text-text-primary border border-border-subtle hover:border-text-tertiary'
+                      : 'bg-bg-card text-text-secondary hover:text-text-primary border border-border-subtle hover:border-text-tertiary'
                   }`}
                 >
                   {cat}
@@ -263,7 +263,7 @@ const TrackRecordSection = () => {
               ))}
             </div>
             
-            <div className="flex items-center gap-2 bg-[#111118] p-1 rounded-xl border border-border-subtle">
+            <div className="flex items-center gap-2 bg-bg-card p-1 rounded-xl border border-border-subtle">
               <button
                 onClick={() => setSuccessFilter(null)}
                 className={`px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all ${successFilter === null ? 'bg-bg-base text-text-primary shadow' : 'text-text-tertiary hover:text-text-secondary'}`}
@@ -302,10 +302,10 @@ const TrackRecordSection = () => {
         </div>
 
         {/* Table Desktop */}
-        <div className="hidden md:block overflow-hidden rounded-3xl border border-border-subtle bg-[#0A0A0F] shadow-2xl">
+        <div className="hidden md:block overflow-hidden rounded-3xl border border-border-subtle bg-bg-base shadow-2xl">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-[#1E1E2E] text-[10px] uppercase font-bold tracking-widest text-text-tertiary">
+              <tr className="bg-border-subtle text-[10px] uppercase font-bold tracking-widest text-text-tertiary">
                 <th className="px-6 py-4 cursor-pointer hover:text-text-primary transition-colors" onClick={() => requestSort('fechaAnalisis')}>
                   Fecha {sortConfig?.key === 'fechaAnalisis' ? (sortConfig.direction === 'asc' ? '▲' : '▼') : ''}
                 </th>
@@ -327,7 +327,7 @@ const TrackRecordSection = () => {
                 <React.Fragment key={item.id}>
                   <tr 
                     onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
-                    className={`group cursor-pointer transition-colors ${idx % 2 === 0 ? 'bg-[#0A0A0F]' : 'bg-[#111118]'} hover:bg-white/5 ${!item.acierto ? 'border-l-4 border-brand-danger' : 'border-l-4 border-transparent'}`}
+                    className={`group cursor-pointer transition-colors ${idx % 2 === 0 ? 'bg-bg-base' : 'bg-bg-card'} hover:bg-brand-indigo/5 ${!item.acierto ? 'border-l-4 border-brand-danger' : 'border-l-4 border-transparent'}`}
                   >
                     <td className="px-6 py-6 text-xs font-mono text-text-tertiary whitespace-nowrap">{item.fechaAnalisis}</td>
                     <td className="px-6 py-6">
@@ -406,7 +406,7 @@ const TrackRecordSection = () => {
             <motion.div 
               key={item.id}
               onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
-              className={`bg-[#111118] border border-border-subtle rounded-2xl p-5 ${!item.acierto ? 'border-l-4 border-brand-danger' : 'border-l-4 border-brand-indigo'}`}
+              className={`bg-bg-card border border-border-subtle rounded-2xl p-5 ${!item.acierto ? 'border-l-4 border-brand-danger' : 'border-l-4 border-transparent'}`}
             >
               <div className="flex justify-between items-start mb-4">
                 <div className="flex flex-col gap-1">
@@ -2442,18 +2442,17 @@ export default function App() {
       {/* Header */}
       <header className="sticky top-0 z-[100] backdrop-blur-xl bg-bg-base/85 border-b border-border-subtle">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2 cursor-pointer group" onClick={() => setView('landing')}>
-            <span className="w-8 h-8 rounded-lg bg-brand-indigo flex items-center justify-center text-white font-bold group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(99,102,241,0.3)] overflow-hidden">
-              {logoUrl ? (
-                <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
-              ) : (
-                logoIcon
-              )}
-            </span>
-            <span className="font-semibold text-lg tracking-tight hidden sm:inline-block">
-              {logoText}
-            </span>
-            <span className="font-semibold text-lg tracking-tight sm:hidden">{logoText}</span>
+          <div className="flex items-center gap-2 cursor-pointer" onClick={() => setView('landing')}>
+            <motion.img 
+              key={theme}
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              src={theme === 'dark' ? "/logo-dark.svg" : "/logo-light.svg"} 
+              alt="Edgio" 
+              className="h-8 md:h-10 w-auto object-contain transition-all"
+            />
           </div>
 
           <nav className="hidden md:flex items-center gap-8">
@@ -2555,12 +2554,13 @@ export default function App() {
               className="fixed top-0 right-0 bottom-0 w-[280px] bg-bg-card z-[160] shadow-2xl p-8"
             >
               <div className="flex justify-between items-center mb-12">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-brand-indigo flex items-center justify-center text-white font-bold overflow-hidden">
-                    {logoUrl ? <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" /> : logoIcon}
-                  </div>
-                  <span className="font-semibold text-lg">{logoText}</span>
-                </div>
+                <motion.img 
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  src={theme === 'dark' ? "/logo-dark.svg" : "/logo-light.svg"} 
+                  alt="Edgio" 
+                  className="h-8 w-auto object-contain"
+                />
                 <button onClick={() => setIsMenuOpen(false)}>
                   <X size={24} />
                 </button>
@@ -3386,10 +3386,12 @@ export default function App() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-12 mb-10 md:mb-20 text-sm">
             <div className="col-span-2 md:col-span-1">
               <div className="flex items-center gap-2 mb-6">
-                <div className="w-10 h-10 rounded-xl bg-brand-indigo flex items-center justify-center text-white font-bold overflow-hidden shadow-lg shadow-brand-indigo/10">
-                  {logoUrl ? <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" /> : logoIcon}
-                </div>
-                <span className="font-semibold text-lg">{logoText}</span>
+                <motion.img 
+                  whileHover={{ rotate: [-1, 1, -1, 1, 0], scale: 1.02 }}
+                  src={theme === 'dark' ? "/logo-dark.svg" : "/logo-light.svg"} 
+                  alt="Edgio" 
+                  className="h-10 md:h-12 w-auto object-contain"
+                />
               </div>
               <p className="text-text-secondary leading-relaxed mb-8 max-w-xs">
                 En un mundo de opiniones, nosotros ofrecemos probabilidades reales.

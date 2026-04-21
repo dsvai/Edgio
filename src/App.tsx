@@ -1317,6 +1317,38 @@ const CheckoutPage = ({ plan, onBack, user, onLogin, showToast }: { plan: Plan, 
     setStep(2);
   };
 
+  const handleCheckout = async () => {
+    if (!user) {
+      onLogin();
+      return;
+    }
+    
+    setIsProcessing(true);
+    try {
+      const res = await fetch("/api/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid: user.uid, plan: plan.id })
+      });
+
+      const data = await res.json();
+
+      console.log("Checkout response:", data);
+
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        console.error("Stripe URL missing");
+        showToast("Error: No se pudo generar el enlace de pago.");
+        setIsProcessing(false);
+      }
+    } catch (e: any) {
+      console.error("Checkout error:", e);
+      showToast(`Error: ${e.message}`);
+      setIsProcessing(false);
+    }
+  };
+
   return (
     <div className="min-h-screen pt-12 pb-24 px-6 max-w-5xl mx-auto">
       <button 
@@ -1394,34 +1426,7 @@ const CheckoutPage = ({ plan, onBack, user, onLogin, showToast }: { plan: Plan, 
 
                   <button 
                     disabled={isProcessing}
-                    onClick={async () => {
-                      if (!user) {
-                        onLogin();
-                        return;
-                      }
-                      setIsProcessing(true);
-                      try {
-                        const res = await fetch("/api/create-checkout-session", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ uid: user.uid, plan: plan.id })
-                        });
-
-                        const data = await res.json();
-
-                        if (data.url) {
-                          window.location.href = data.url;
-                        } else {
-                          console.error("Stripe error response:", data);
-                          showToast(`Error: ${data.error || "No se pudo generar la sesión de pago."}`);
-                        }
-                      } catch (e: any) {
-                        console.error("Checkout error:", e);
-                        showToast(`Error: ${e.message}`);
-                      } finally {
-                        setIsProcessing(false);
-                      }
-                    }}
+                    onClick={handleCheckout}
                     className="w-full bg-brand-indigo hover:brightness-110 disabled:opacity-50 text-white font-bold py-4 rounded-xl shadow-lg shadow-brand-indigo/20 transition-all flex items-center justify-center gap-2 mt-8"
                   >
                     {isProcessing ? 'Redirigiendo a Stripe...' : `Ir al pago seguro: ${plan.price}`}

@@ -68,11 +68,9 @@ export default async function handler(req: any, res: any) {
       metadata: { uid, plan },
     });
 
-    res.status(200).json({
-      url: session.url
-    });
+    res.status(200).json({ url: session.url });
   } catch (error: any) {
     console.error('Checkout error:', error);
-    return res.status(500).json({ error: error.message });
+    res.status(500).json({ error: error.message });
   }
 }

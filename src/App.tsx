@@ -46,6 +46,7 @@ import {
   X as XIcon
 } from 'lucide-react';
 import { motion, AnimatePresence, useScroll, useSpring } from 'framer-motion';
+import DOMPurify from 'dompurify';
 import {
   Chart as ChartJS,
   LinearScale,
@@ -71,7 +72,7 @@ import {
   signOut,
   onAuthStateChanged
 } from './lib/firebase';
-import { doc, onSnapshot, updateDoc, serverTimestamp, collection, query, orderBy, setDoc } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, serverTimestamp, collection, query, orderBy, setDoc, addDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 ChartJS.register(LinearScale, PointElement, LineElement, Tooltip, Legend, ScatterController, LineController, CategoryScale);
@@ -2131,6 +2132,8 @@ export default function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState('Todos');
   const [email, setEmail] = useState('');
+  const [newsletterHoneypot, setNewsletterHoneypot] = useState('');
+  const [lastNewsletterSubmit, setLastNewsletterSubmit] = useState(0);
   const [emailStatus, setEmailStatus] = useState<'idle' | 'invalid' | 'submitting' | 'success'>('idle');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [toast, setToast] = useState<string | null>(null);
@@ -2159,6 +2162,52 @@ export default function App() {
     damping: 30,
     restDelta: 0.001
   });
+
+  const handleNewsletterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // 1. Honeypot check
+    if (newsletterHoneypot) {
+      console.log("Bot detected");
+      return;
+    }
+
+    // 2. Rate limiting (30s)
+    const now = Date.now();
+    if (now - lastNewsletterSubmit < 30000) {
+      showToast("Demasiados intentos. Por favor, espera 30 segundos.");
+      return;
+    }
+
+    // 3. Basic validation
+    const emailRegex = /^[^@]+@[^@]+\.[^@]+$/;
+    if (!email || !emailRegex.test(email) || email.length > 100) {
+      setEmailStatus('invalid');
+      showToast("Por favor, introduce un email válido.");
+      return;
+    }
+
+    // 4. Sanitize
+    const sanitizedEmail = DOMPurify.sanitize(email.trim());
+
+    setEmailStatus('submitting');
+    try {
+      await addDoc(collection(db, 'newsletter_suscriptores'), {
+        email: sanitizedEmail,
+        createdAt: serverTimestamp(),
+        source: 'landing_form'
+      });
+
+      setLastNewsletterSubmit(now);
+      setEmailStatus('success');
+      setEmail('');
+      showToast("¡Gracias! Te has suscrito correctamente.");
+    } catch (error) {
+      console.error("Error subscribing to newsletter:", error);
+      showToast("Hubo un error al procesar tu suscripción.");
+      setEmailStatus('idle');
+    }
+  };
 
   const showToast = (message: string) => {
     setToast(message);
@@ -3338,7 +3387,18 @@ export default function App() {
               Cada lunes, un análisis completo de un mercado activo. Descubre el edge antes que nadie. Sin spam.
             </p>
             
-            <form onSubmit={(e) => e.preventDefault()} className="max-w-md mx-auto relative">
+            <form onSubmit={handleNewsletterSubmit} className="max-w-md mx-auto relative">
+              {/* Honeypot field - hidden from users */}
+              <input 
+                type="text" 
+                name="b_honeypot" 
+                tabIndex={-1} 
+                className="absolute opacity-0 pointer-events-none -z-10"
+                value={newsletterHoneypot}
+                onChange={e => setNewsletterHoneypot(e.target.value)}
+                autoComplete="off"
+              />
+              
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="relative flex-grow">
                   <input
@@ -3346,16 +3406,22 @@ export default function App() {
                     placeholder="tu@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-bg-base border border-border-subtle rounded-xl px-5 py-3.5 outline-none focus:border-brand-indigo transition-all placeholder:text-text-tertiary text-text-primary"
+                    maxLength={100}
+                    required
+                    className={`w-full bg-bg-base border ${emailStatus === 'invalid' ? 'border-red-500' : 'border-border-subtle'} rounded-xl px-5 py-3.5 outline-none focus:border-brand-indigo transition-all placeholder:text-text-tertiary text-text-primary`}
                   />
                 </div>
                 <button 
                   type="submit"
-                  className="px-8 py-3.5 rounded-xl font-bold transition-all shrink-0 bg-brand-indigo hover:brightness-110 text-white shadow-lg shadow-brand-indigo/20"
+                  disabled={emailStatus === 'submitting'}
+                  className="px-8 py-3.5 rounded-xl font-bold transition-all shrink-0 bg-brand-indigo hover:brightness-110 text-white shadow-lg shadow-brand-indigo/20 disabled:opacity-50 disabled:cursor-wait"
                 >
-                  Suscribirse
+                  {emailStatus === 'submitting' ? <Loader2 className="animate-spin" /> : 'Suscribirse'}
                 </button>
               </div>
+              {emailStatus === 'success' && (
+                <p className="mt-4 text-green-500 text-sm font-medium">¡Suscripción completada con éxito!</p>
+              )}
             </form>
             
             <p className="mt-8 text-text-tertiary text-xs">

@@ -3,8 +3,11 @@ import cors from 'cors';
 import axios from 'axios';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
 import createCheckoutSession from './api/create-checkout-session.js';
 import webhookHandler from './api/webhook.js';
+
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,7 +19,29 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(cors());
+  const allowedOrigins = [
+    'https://edgio.es',
+    'https://www.edgio.es',
+    'http://localhost:5173',
+    'http://localhost:3000'
+  ];
+
+  app.use(cors({
+    origin: (origin, callback) => {
+      // Allow if no origin (mobile apps, curl, etc.)
+      if (!origin) return callback(null, true);
+
+      // Check if it's in the allowed list
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+
+      // Also allow any .run.app subdomain (AI Studio environments)
+      if (origin.endsWith('.run.app')) return callback(null, true);
+
+      callback(new Error('Not allowed by CORS'));
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    credentials: true
+  }));
 
   // Vercel-style handlers integration for development
   app.post('/api/create-checkout-session', express.json(), (req, res) => createCheckoutSession(req, res));

@@ -5,12 +5,15 @@ import firebaseConfig from '../firebase-applet-config.json';
 import { Readable } from 'stream';
 
 // Initialize Firebase Admin once
+const projectId = process.env.VITE_FIREBASE_PROJECT_ID || firebaseConfig.projectId;
+const databaseId = process.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID || firebaseConfig.firestoreDatabaseId;
+
 if (!getApps().length) {
   initializeApp({
-    projectId: firebaseConfig.projectId,
+    projectId: projectId,
   });
 }
-const db = getFirestore(firebaseConfig.firestoreDatabaseId);
+const db = getFirestore(databaseId);
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 

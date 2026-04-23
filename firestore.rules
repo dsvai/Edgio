@@ -1,8 +1,86 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // Deny-by-default global
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
+    }
+    
+    // Análisis (track record público)
+    match /analysis/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Individual Track Record Entries
+    match /trackRecord/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Config (branding, logo, etc.)
+    match /config/{document} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    
+    // Newsletter
+    match /newsletter_suscriptores/{id} {
+      allow read: if isAdmin();
+      allow create: if isValidNewsletterEntry();
+      allow update, delete: if isAdmin();
+    }
+
+    // Users
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUserCreate();
+      allow update: if isOwner(userId) && isValidUserUpdate();
+      allow delete: if isAdmin();
+    }
+    
+    // Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.email == 'dani.sanchez.vila@gmail.com';
+    }
+    
+    function isValidNewsletterEntry() {
+      let data = request.resource.data;
+      return data.keys().hasOnly(['email', 'createdAt', 'source'])
+        && data.email is string
+        && data.email.size() <= 100
+        && data.email.matches('^[^@]+@[^@]+\\.[^@]+$')
+        && data.createdAt == request.time;
+    }
+
+    function isValidUserCreate() {
+      let data = request.resource.data;
+      return data.keys().hasAll(['uid', 'email', 'subscriptionStatus', 'points', 'createdAt'])
+        && data.uid == request.auth.uid
+        && data.isAdmin == false // Block isAdmin from client
+        && data.subscriptionStatus == 'free'
+        && data.points == 0
+        && data.createdAt == request.time;
+    }
+
+    function isValidUserUpdate() {
+      let data = request.resource.data;
+      let existing = resource.data;
+      return data.uid == existing.uid
+        && data.email == existing.email
+        && data.createdAt == existing.createdAt
+        && (data.isAdmin == existing.isAdmin || (data.isAdmin == false && !existing.keys().contains('isAdmin')))
+        // Allow updates to non-critical fields
+        && data.updatedAt == request.time;
     }
   }
 }

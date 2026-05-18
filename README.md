@@ -1,43 +1,32 @@
-# Edgio - Inteligencia en Mercados de PredicciÃ³n
+# Edgio
 
-Edgio es una plataforma avanzada de anÃ¡lisis cuantitativo para mercados de predicciÃ³n como Polymarket. Utiliza enfoques de superforecasting e inteligencia bayesiana para identificar ineficiencias de mercado.
+Precio no es probabilidad.
 
-## ï¿½ï¿½ Despliegue en Vercel
+Edgio es una escuela hispanohablante de calibración para mercados de predicción. Enseña a leer el error del mercado en Polymarket y convertirlo en probabilidad calibrada con método, datos y disciplina.
 
-Para desplegar este proyecto en Vercel de forma correcta:
+## Desarrollo Local
 
-1. **Subir a GitHub**: AsegÃºrate de que el cÃ³digo estÃ© en un repositorio de GitHub.
-2. **Importar en Vercel**: Ve a [vercel.com](https://vercel.com), dale a "Add New" -> "Project" e importa tu repositorio.
-3. **Configurar Variables de Entorno**: Es CRUCIAL que aÃ±adas las variables necesarias en la configuraciÃ³n de Vercel (Settings -> Environment Variables):
-   - `GEMINI_API_KEY`: Tu clave de API de Google Gemini (si la usas para funciones de IA).
-4. **Build settings**: Vercel detectarÃ¡ automÃ¡ticamente que es un proyecto de Vite. Los valores por defecto son correctos:
-   - Framework Preset: `Vite`
-   - Build Command: `npm run build`
-   - Output Directory: `dist`
-
-## ï¿½ï¿½ Desarrollo Local
-
-1. Instala las dependencias:
+1. Instala dependencias:
    ```bash
    npm install
    ```
-2. Inicia el servidor de desarrollo:
+
+2. Inicia el entorno de desarrollo:
    ```bash
    npm run dev
    ```
 
-## ï¿½ï¿½ GuÃ­a para GitHub
+3. Compila producción:
+   ```bash
+   npm run build
+   ```
 
-Si es la primera vez que lo subes, usa estos comandos:
+## Despliegue En Vercel
 
-```bash
-git init
-git add .
-git commit -m "Initial commit: Edgio Platform"
-git branch -M main
-git remote add origin https://github.com/tu-usuario/nombre-del-repo.git
-git push -u origin main
-```
+Vercel puede importar el repositorio como proyecto Vite.
 
----
-*Edgio no ofrece asesoramiento financiero. Los mercados de predicciÃ³n implican riesgo real.*
+- Build command: `npm run build`
+- Output directory: `dist`
+- Variables necesarias: revisa `.env.example`
+
+Edgio no ofrece asesoramiento financiero ni promesas de rentabilidad. Los mercados de predicción implican riesgo real.

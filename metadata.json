@@ -1,6 +1,6 @@
 {
   "name": "Edgio",
-  "description": "Escuela de calibración para mercados de predicción. Método, track record público y lectura del edge en Polymarket.",
+  "description": "Sistema predictivo de análisis cuantitativo para mercados de predicción. Análisis de edge, track record público y señales de mercado.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

@@ -74,6 +74,7 @@ import {
 } from './lib/firebase';
 import { doc, onSnapshot, updateDoc, serverTimestamp, collection, query, orderBy, setDoc, addDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { Logo, Isotype, WedgeTool } from './components/Branding';
 
 ChartJS.register(LinearScale, PointElement, LineElement, Tooltip, Legend, ScatterController, LineController, CategoryScale);
 
@@ -237,21 +238,21 @@ const TrackRecordSection = () => {
             </div>
             
             <div className="grid grid-cols-2 md:flex gap-6">
-                  <div className="bg-bg-card border border-border-subtle p-6 rounded-2xl min-w-[140px] group hover:border-brand-indigo/50 transition-colors">
+              <div className="bg-bg-card border border-border-subtle p-6 rounded-2xl min-w-[140px] group hover:border-brand-brasa/50 transition-colors shadow-sm">
                 <span className="text-[10px] text-text-tertiary uppercase font-bold tracking-widest block mb-2">Tasa de acierto</span>
-                <span className="text-4xl font-mono font-bold text-brand-emerald">{stats.accuracy}</span>
+                <span className="text-4xl font-mono font-bold text-text-primary">{stats.accuracy}</span>
               </div>
-              <div className="bg-bg-card border border-border-subtle p-6 rounded-2xl min-w-[140px] group hover:border-brand-indigo/50 transition-colors">
+              <div className="bg-bg-card border border-border-subtle p-6 rounded-2xl min-w-[140px] group hover:border-brand-brasa/50 transition-colors shadow-sm">
                 <span className="text-[10px] text-text-tertiary uppercase font-bold tracking-widest block mb-2">Brier Score</span>
-                <span className="text-4xl font-mono font-bold text-brand-indigo">{stats.brier}</span>
+                <span className="text-4xl font-mono font-bold text-text-primary">{stats.brier}</span>
               </div>
-              <div className="bg-bg-card border border-border-subtle p-6 rounded-2xl min-w-[140px] group hover:border-brand-indigo/50 transition-colors">
+              <div className="bg-bg-card border border-border-subtle p-6 rounded-2xl min-w-[140px] group hover:border-brand-brasa/50 transition-colors shadow-sm">
                 <span className="text-[10px] text-text-tertiary uppercase font-bold tracking-widest block mb-2">Edge Promedio</span>
-                <span className="text-4xl font-mono font-bold text-brand-emerald">{stats.avgEdge}</span>
+                <span className="text-4xl font-mono font-bold text-text-primary">{stats.avgEdge}</span>
               </div>
-              <div className="bg-bg-card border border-border-subtle p-6 rounded-2xl min-w-[140px] group hover:border-brand-indigo/50 transition-colors">
+              <div className="bg-bg-card border border-border-subtle p-6 rounded-2xl min-w-[140px] group hover:border-brand-brasa/50 transition-colors shadow-sm">
                 <span className="text-[10px] text-text-tertiary uppercase font-bold tracking-widest block mb-1">Predicciones</span>
-                <span className="text-4xl font-mono font-bold text-brand-indigo">{stats.total}</span>
+                <span className="text-4xl font-mono font-bold text-text-primary">{stats.total}</span>
               </div>
             </div>
           </div>
@@ -266,11 +267,11 @@ const TrackRecordSection = () => {
                 <button
                   key={cat}
                   onClick={() => setFilter(cat)}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                    filter === cat 
-                      ? 'bg-brand-indigo text-white shadow-lg shadow-brand-indigo/20' 
-                      : 'bg-bg-card text-text-secondary hover:text-text-primary border border-border-subtle hover:border-text-tertiary'
-                  }`}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                        filter === cat 
+                          ? 'bg-brand-tinta text-brand-hueso shadow-lg' 
+                          : 'bg-bg-card text-text-secondary hover:text-text-primary border border-border-subtle hover:border-text-tertiary'
+                      }`}
                 >
                   {cat}
                 </button>
@@ -484,16 +485,16 @@ const TrackRecordSection = () => {
         {/* Show More Button */}
         {filteredData.length > INITIAL_VISIBLE_COUNT && (
           <div className="mt-8 flex justify-center">
-            <button 
-              onClick={() => setShowAll(!showAll)}
-              className="flex items-center gap-2 px-8 py-4 bg-brand-indigo/10 border border-brand-indigo/30 hover:bg-brand-indigo/20 text-brand-indigo rounded-2xl font-bold transition-all group"
-            >
-              {showAll ? (
-                <>Ver menos <ChevronDown size={20} className="rotate-180 transition-transform group-hover:-translate-y-0.5" /></>
-              ) : (
-                <>Cargar más operaciones (+{filteredData.length - INITIAL_VISIBLE_COUNT}) <ChevronDown size={20} className="transition-transform group-hover:translate-y-0.5" /></>
-              )}
-            </button>
+              <button 
+                onClick={() => setShowAll(!showAll)}
+                className="flex items-center gap-2 px-10 py-5 bg-brand-tinta text-brand-hueso hover:bg-brand-brasa border border-transparent rounded-2xl font-bold transition-all group shadow-xl"
+              >
+                {showAll ? (
+                  <>Ver menos <ChevronDown size={20} className="rotate-180 transition-transform group-hover:-translate-y-0.5" /></>
+                ) : (
+                  <>Cargar más operaciones <ChevronDown size={20} className="transition-transform group-hover:translate-y-0.5" /></>
+                )}
+              </button>
           </div>
         )}
 
@@ -558,11 +559,11 @@ const StatItem = ({ value, label, subtext, highlight = 'indigo' }: { value: stri
 
   return (
     <div className="flex flex-col items-center md:items-start text-center md:text-left animate-on-scroll">
-      <span className={`font-mono text-4xl md:text-5xl font-semibold mb-2 ${highlight === 'emerald' ? 'text-brand-emerald' : 'text-brand-indigo'}`}>
+      <span className={`font-mono text-4xl md:text-6xl font-extrabold mb-2 tracking-tighter ${highlight === 'emerald' ? 'text-brand-brasa' : 'text-text-primary'}`}>
         {formattedValue}
       </span>
-      <span className="text-text-secondary text-sm font-medium uppercase tracking-wider">{label}</span>
-      <span className="text-text-tertiary text-xs mt-1">{subtext}</span>
+      <span className="text-text-secondary text-[11px] font-bold uppercase tracking-[0.1em]">{label}</span>
+      <span className="text-text-tertiary text-xs mt-1 font-sans">{subtext}</span>
     </div>
   );
 };
@@ -581,27 +582,26 @@ const AnalysisCardComp = ({ data, onClick, currentUser }: { data: any, onClick: 
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
-      whileHover={{ y: -4, borderColor: 'rgba(99,102,241,0.4)' }}
-      className="bg-bg-card border border-border-subtle rounded-xl p-5 transition-all duration-200 group relative overflow-hidden"
+      whileHover={{ y: -4, borderColor: 'var(--color-brand-brasa)' }}
+      className="bg-bg-card border border-border-subtle rounded-3xl p-6 transition-all duration-300 group relative overflow-hidden shadow-sm hover:shadow-xl"
     >
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-2">
-          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-            data.category === 'Política' ? 'bg-brand-indigo/20 text-brand-indigo' :
-            data.category === 'Economía' ? 'bg-brand-emerald/20 text-brand-emerald' :
-            'bg-amber-500/20 text-amber-500'
-          }`}>
+          <span className="px-2 py-0.5 border border-border-subtle rounded text-[10px] font-bold uppercase tracking-wider text-text-secondary bg-bg-base">
             {data.category}
           </span>
           <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-            isPremium ? 'bg-brand-indigo text-white' : 'bg-brand-emerald/10 text-brand-emerald'
+            isPremium ? 'bg-brand-tinta text-brand-hueso' : 'bg-brand-brasa/10 text-brand-brasa'
           }`}>
-            {isPremium ? 'Premium' : 'Gratuito'}
+            {isPremium ? 'PREMIUM' : 'ABIERTO'}
           </span>
         </div>
-        <span className="font-mono text-[10px] text-text-tertiary">
-          {data.daysRemaining || 7} DÍAS REST.
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="font-mono text-[10px] text-text-tertiary">
+            {data.daysRemaining || 7}d
+          </span>
+          <Isotype className="h-4 w-auto opacity-30 group-hover:opacity-100 transition-opacity" />
+        </div>
       </div>
 
       <h3 className="text-text-primary font-semibold text-[0.95rem] line-clamp-2 h-12 mb-6 leading-snug">
@@ -1363,9 +1363,9 @@ const CheckoutPage = ({ plan, onBack, user, onLogin, showToast }: { plan: Plan, 
         {/* Checkout Form */}
         <div className="lg:col-span-3">
           <div className="flex items-center gap-4 mb-10">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border-2 transition-all ${step >= 1 ? 'bg-brand-indigo border-brand-indigo text-white' : 'border-border-subtle text-text-tertiary'}`}>1</div>
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border-2 transition-all ${step >= 1 ? 'bg-brand-tinta border-brand-tinta text-brand-hueso' : 'border-border-subtle text-text-tertiary'}`}>1</div>
             <div className="h-[2px] w-12 bg-border-subtle" />
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border-2 transition-all ${step >= 2 ? 'bg-brand-indigo border-brand-indigo text-white' : 'border-border-subtle text-text-tertiary'}`}>2</div>
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border-2 transition-all ${step >= 2 ? 'bg-brand-tinta border-brand-tinta text-brand-hueso' : 'border-border-subtle text-text-tertiary'}`}>2</div>
           </div>
 
           <AnimatePresence mode="wait">
@@ -1376,26 +1376,26 @@ const CheckoutPage = ({ plan, onBack, user, onLogin, showToast }: { plan: Plan, 
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
               >
-                <h2 className="text-3xl font-semibold mb-2">Información de cuenta</h2>
-                <p className="text-text-secondary mb-8">Introduce tus datos para empezar tu suscripción.</p>
+                <h2 className="text-3xl font-display font-extrabold mb-2 tracking-tighter">Información de cuenta</h2>
+                <p className="text-text-secondary mb-8 font-sans">Introduce tus datos para empezar tu suscripción.</p>
 
                 <form onSubmit={handleNext} className="space-y-6">
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-widest text-text-tertiary mb-2">Email de acceso</label>
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-text-tertiary mb-2 ml-1">Email de acceso</label>
                     <input 
                       required
                       type="email"
-                      placeholder="ejemplo@email.com"
-                      className="w-full bg-bg-card border border-border-subtle rounded-xl px-5 py-3.5 outline-none focus:border-brand-indigo transition-all"
+                      placeholder="tu@email.com"
+                      className="w-full bg-bg-card border border-border-subtle rounded-xl px-5 py-4 outline-none focus:border-brand-brasa transition-all font-mono text-sm"
                       value={formData.email}
                       onChange={e => setFormData({...formData, email: e.target.value})}
                     />
                   </div>
                   <button 
                     type="submit"
-                    className="w-full bg-brand-indigo hover:brightness-110 text-white font-bold py-4 rounded-xl shadow-lg shadow-brand-indigo/20 transition-all flex items-center justify-center gap-2"
+                    className="w-full bg-brand-tinta hover:bg-brand-brasa text-brand-hueso font-bold py-5 rounded-xl shadow-xl transition-all flex items-center justify-center gap-2"
                   >
-                    Siguiente paso <ChevronRight size={18} />
+                    Siguiente paso <ArrowRight size={18} />
                   </button>
                 </form>
               </motion.div>
@@ -1406,34 +1406,33 @@ const CheckoutPage = ({ plan, onBack, user, onLogin, showToast }: { plan: Plan, 
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
               >
-                <h2 className="text-3xl font-semibold mb-2">Método de pago</h2>
-                <p className="text-text-secondary mb-8">Pago 100% seguro procesado por Stripe.</p>
+                <h2 className="text-3xl font-display font-extrabold mb-2 tracking-tighter">Confirmación del Plan</h2>
+                <p className="text-text-secondary mb-8 font-sans">Pago 100% seguro procesado por Stripe.</p>
 
                 <div className="space-y-6">
-                  <div className="bg-brand-indigo/5 border border-brand-indigo/20 rounded-xl p-4 flex items-center justify-between mb-8">
+                  <div className="bg-brand-brasa/5 border border-brand-brasa/20 rounded-2xl p-6 flex items-center justify-between mb-8">
                     <div className="flex items-center gap-3">
-                      <ShieldCheck className="text-brand-indigo" size={20} />
-                      <span className="text-sm font-medium">Encriptación SSL de 256 bits</span>
-                    </div>
-                    <div className="flex gap-2">
-                       <div className="w-8 h-5 bg-white/10 rounded" />
-                       <div className="w-8 h-5 bg-white/10 rounded" />
+                      <ShieldCheck className="text-brand-brasa" size={24} />
+                      <div className="flex flex-col">
+                        <span className="text-sm font-bold text-text-primary">Stripe Secure</span>
+                        <span className="text-[10px] uppercase tracking-widest text-text-tertiary">Encriptación de grado militar</span>
+                      </div>
                     </div>
                   </div>
 
                   <div className="space-y-4">
-                    <p className="text-sm text-text-secondary">Haz clic en el botón de abajo para ser redirigido a la pasarela segura de Stripe y completar tu suscripción.</p>
+                    <p className="text-sm text-text-secondary font-sans leading-relaxed">Tras pulsar el botón, serás redirigido a la pasarela oficial de Stripe para completar el proceso de forma segura.</p>
                   </div>
 
                   <button 
                     disabled={isProcessing}
                     onClick={handleCheckout}
-                    className="w-full bg-brand-indigo hover:brightness-110 disabled:opacity-50 text-white font-bold py-4 rounded-xl shadow-lg shadow-brand-indigo/20 transition-all flex items-center justify-center gap-2 mt-8"
+                    className="w-full bg-brand-tinta hover:bg-brand-brasa disabled:opacity-50 text-brand-hueso font-bold py-5 rounded-xl shadow-xl transition-all flex items-center justify-center gap-3 mt-8"
                   >
-                    {isProcessing ? 'Redirigiendo a Stripe...' : `Ir al pago seguro: ${plan.price}`}
+                    {isProcessing ? <Loader2 className="animate-spin" /> : <><Lock size={18} /> Ir al pago seguro: {plan.price}</>}
                   </button>
-                  <p className="text-center text-[11px] text-text-tertiary mt-4">
-                    Al confirmar, aceptas nuestros términos de servicio y política de privacidad.
+                  <p className="text-center text-[10px] uppercase tracking-widest text-text-tertiary mt-8 font-mono">
+                    Suscripción gestionada vía Stripe Billing
                   </p>
                 </div>
               </motion.div>
@@ -2135,7 +2134,7 @@ export default function App() {
   const [newsletterHoneypot, setNewsletterHoneypot] = useState('');
   const [lastNewsletterSubmit, setLastNewsletterSubmit] = useState(0);
   const [emailStatus, setEmailStatus] = useState<'idle' | 'invalid' | 'submitting' | 'success'>('idle');
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [theme] = useState<'dark' | 'light'>('dark');
   const [toast, setToast] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
@@ -2508,11 +2507,7 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const toggleTheme = () => {
-    const newTheme = theme === 'dark' ? 'light' : 'dark';
-    setTheme(newTheme);
-    document.documentElement.classList.toggle('light-mode');
-  };
+  const toggleTheme = () => {};
 
   // --- Animation Intersection Observer ---
   useEffect(() => {
@@ -2564,17 +2559,7 @@ export default function App() {
       <header className="sticky top-0 z-[100] backdrop-blur-xl bg-bg-base/85 border-b border-border-subtle">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => setView('landing')}>
-            <motion.img 
-              key={theme}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              src={logoUrl || (theme === 'dark' ? "/logo-dark.svg" : "/logo-light.svg")} 
-              alt="Edgio" 
-              className="h-8 md:h-10 w-auto object-contain transition-all"
-              referrerPolicy="no-referrer"
-            />
+            <Logo className="h-8 md:h-9" colorMode={theme === 'dark' ? 'dark' : 'light'} />
           </div>
 
           <nav className="hidden md:flex items-center gap-8">
@@ -2598,13 +2583,6 @@ export default function App() {
           </nav>
 
           <div className="flex items-center gap-2">
-            <button 
-              onClick={toggleTheme}
-              className="hidden md:flex p-2 text-text-tertiary hover:text-brand-indigo transition-colors"
-            >
-              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
-            
             <div className="hidden md:block">
               {currentUser ? (
                 <div className="flex items-center gap-4">
@@ -2807,38 +2785,40 @@ export default function App() {
             >
               {/* Section 1: Hero */}
               <section id="inicio" className="relative pt-12 pb-16 md:pt-32 md:pb-48 px-6 grid-pattern overflow-hidden">
-          <div className="max-w-4xl mx-auto text-center relative z-10">
-      <div className="bg-brand-indigo/5 border border-brand-indigo/20 rounded-2xl p-6 md:p-8 mb-12">
-        <div className="inline-flex items-center gap-2 px-2 py-1 bg-brand-indigo/10 border border-brand-indigo/30 rounded-full text-brand-indigo text-[10px] font-bold uppercase tracking-wider mb-6">
-          → {analyses.length > 0 ? `Nuevo análisis publicado: ${analyses[0].title}` : 'Seguimiento de mercados real en curso'}
-        </div>
-        <h1 className="text-text-primary text-[2.5rem] md:text-[4rem] font-semibold leading-[1.05] mb-8 tracking-tight">
-          Detectamos ineficiencias en los mercados de predicción.
-        </h1>
-        <p className="text-text-secondary text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
-          Análisis cuantitativo de mercados sin hype. Sistema basado en superforecasting e inteligencia bayesiana para identificar dónde el mercado está equivocado.
-        </p>
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <button 
-            onClick={() => {
-              const el = document.getElementById('analisis');
-              if (el) el.scrollIntoView({ behavior: 'smooth' });
-            }}
-            className="w-full sm:w-auto bg-brand-indigo hover:brightness-110 text-white font-semibold px-8 py-4 rounded-xl transition-all shadow-lg shadow-brand-indigo/20 text-lg"
-          >
-            Ver análisis activos
-          </button>
-          <button 
-            onClick={() => {
-              const el = document.getElementById('metodologia');
-              if (el) el.scrollIntoView({ behavior: 'smooth' });
-            }}
-            className="w-full sm:w-auto border border-border-subtle hover:bg-white/5 font-semibold px-8 py-4 rounded-xl transition-all text-lg"
-          >
-            ¿Cómo funciona?
-          </button>
-        </div>
-      </div>
+                <div className="max-w-4xl mx-auto text-center relative z-10">
+                  <div className="bg-bg-card border border-border-subtle rounded-3xl p-8 md:p-12 mb-12 shadow-2xl">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-brand-brasa/10 border border-brand-brasa/20 rounded-full text-brand-brasa text-[10px] font-bold uppercase tracking-wider mb-8">
+                      <Zap size={12} className="fill-brand-brasa" />
+                      {analyses.length > 0 ? `Nuevo análisis: ${analyses[0].title}` : 'Precio no es probabilidad.'}
+                    </div>
+                    <h1 className="text-text-primary text-[3rem] md:text-[5.5rem] font-display font-extrabold leading-[0.9] mb-10 tracking-tighter">
+                      Precio no es <span className="text-brand-brasa">probabilidad.</span>
+                    </h1>
+                    <p className="text-text-secondary text-lg md:text-2xl max-w-2xl mx-auto mb-12 leading-relaxed font-sans">
+                      Edgio es la escuela que enseña a leer el error del mercado en <span className="text-text-primary font-semibold underline decoration-brand-brasa underline-offset-4">Polymarket</span> y a convertirlo en probabilidad calibrada.
+                    </p>
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-5">
+                      <button 
+                        onClick={() => {
+                          const el = document.getElementById('analisis');
+                          if (el) el.scrollIntoView({ behavior: 'smooth' });
+                        }}
+                        className="w-full sm:w-auto bg-brand-tinta text-brand-hueso hover:brightness-110 font-bold px-10 py-5 rounded-xl transition-all shadow-xl text-lg flex items-center justify-center gap-3"
+                      >
+                        Ver análisis activos <ArrowRight size={20} />
+                      </button>
+                      <button 
+                        onClick={() => {
+                          const el = document.getElementById('metodologia');
+                          if (el) el.scrollIntoView({ behavior: 'smooth' });
+                        }}
+                        className="w-full sm:w-auto border border-border-subtle hover:bg-brand-tinta hover:text-brand-hueso font-bold px-10 py-5 rounded-xl transition-all text-lg"
+                      >
+                        ¿Cómo funciona?
+                      </button>
+                    </div>
+                  </div>
+                </div>
 
             {/* Hero Mockup */}
             <motion.div 
@@ -2851,48 +2831,30 @@ export default function App() {
               <div className="relative">
                 <div className="flex justify-between items-center mb-6">
                   <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-brand-emerald rounded-full animate-pulse" />
+                    <div className="w-2 h-2 bg-brand-brasa rounded-full animate-pulse" />
                     <span className="text-text-tertiary text-xs font-semibold uppercase tracking-widest">Análisis en vivo · Activo</span>
                   </div>
-                  <BarChart3 size={16} className="text-brand-indigo" />
+                  <Isotype className="h-6 w-auto" />
                 </div>
                 
-                <h4 className="text-left text-xl font-medium mb-8">¿Ganará el Partido Nacional las próximas elecciones en Uruguay?</h4>
+                <h4 className="text-left text-xl font-display font-bold mb-4 tracking-tight leading-tight">¿Ganará el Partido Nacional las próximas elecciones en Uruguay?</h4>
                 
-                <div className="grid grid-cols-2 gap-8 mb-8 text-left">
-                  <div>
-                    <span className="text-text-tertiary text-[10px] uppercase block mb-1">Mercado</span>
-                    <span className="font-mono text-3xl font-semibold text-text-secondary">62%</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-text-tertiary text-[10px] uppercase block mb-1">Nuestra Estimación</span>
-                    <span className="font-mono text-3xl font-semibold text-brand-emerald">71%</span>
-                  </div>
-                </div>
+                <WedgeTool price={0.62} probability={0.71} edge={9} colorMode={theme === 'dark' ? 'dark' : 'light'} />
 
-                <div className="relative h-2 bg-border-subtle rounded-full mb-4 overflow-hidden">
-                  <div className="absolute h-full bg-brand-indigo/40" style={{ width: '62%' }} />
-                  <div className="absolute h-full bg-brand-emerald shadow-[0_0_15px_rgba(16,185,129,0.5)]" style={{ left: '62%', width: '9%' }} />
-                </div>
-
-                <div className="flex justify-between items-center mb-8">
-                  <div className="bg-brand-emerald/10 text-brand-emerald px-2 py-1 rounded text-xs font-bold font-mono">
-                    +9 PUNTOS EDGE
-                  </div>
+                <div className="flex justify-between items-center mt-4 pt-6 border-t border-border-subtle">
                   <div className="flex items-center gap-1.5">
-                    <Target size={14} className="text-brand-indigo" />
-                    <span className="text-text-secondary text-xs">Convicción: 7/10</span>
+                    <Target size={14} className="text-brand-brasa" />
+                    <span className="text-text-secondary text-xs font-mono">Convicción: 07/10</span>
                   </div>
-                </div>
-
-                <div className="flex justify-between text-xs text-text-tertiary border-t border-border-subtle/50 pt-4">
-                  <span>Liq: $47.200</span>
-                  <span>Res: 23 días</span>
+                  <div className="flex items-center gap-3 font-mono text-xs text-text-tertiary">
+                    <span>Liq: $47.200</span>
+                    <span className="opacity-30">|</span>
+                    <span>Res: 23 días</span>
+                  </div>
                 </div>
               </div>
             </motion.div>
-          </div>
-        </section>
+          </section>
 
         {/* Section 2: Credibility Metrics (Legacy) */}
         {/* We keep this as a summary anchor, but the full section is below */}
@@ -2923,8 +2885,8 @@ export default function App() {
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
             <div>
               <div className="flex items-center gap-3 mb-4">
-                <h2 className="text-3xl font-semibold">Análisis publicados</h2>
-                <span className="bg-brand-indigo/10 text-brand-indigo text-[10px] font-bold px-2 py-0.5 rounded tracking-widest uppercase">{analyses.filter(a => a.status === 'active').length} Activos</span>
+                <h2 className="text-3xl md:text-4xl font-display font-extrabold tracking-tighter">Análisis publicados</h2>
+                <span className="bg-brand-brasa/10 text-brand-brasa text-[10px] font-bold px-3 py-1 rounded-full tracking-widest uppercase">{analyses.filter(a => a.status === 'active').length} Activos</span>
               </div>
               <p className="text-text-secondary max-w-xl">
                 Detección sistemática de sesgos en mercados globales. Actualizado en tiempo real según nuevos flujos de información.
@@ -2981,33 +2943,33 @@ export default function App() {
         <section id="metodologia" className="py-16 md:py-32 px-6 bg-bg-card border-y border-border-subtle">
           <div className="max-w-4xl mx-auto">
             <div className="mb-24 animate-on-scroll">
-              <span className="text-brand-indigo font-mono text-sm block mb-4 uppercase tracking-[0.2em]">Framework Científico</span>
-              <h2 className="text-4xl md:text-5xl font-bold mb-8 leading-tight">El sistema completo: cómo funciona la fórmula de edge</h2>
-              <p className="text-text-secondary text-lg leading-relaxed mb-12">
-                Todo el sistema se basa en una idea simple pero que casi nadie ejecuta con rigor: el precio de un mercado de predicción es solo una <span className="text-text-primary font-medium">opinión colectiva</span>, y las opiniones colectivas cometen errores sistemáticos y predecibles. Cuando detectas uno de esos errores antes de que el mercado lo corrija, tienes <span className="text-brand-indigo font-bold italic">edge</span>.
+              <span className="text-brand-brasa font-mono text-sm block mb-4 uppercase tracking-[0.2em] font-bold">Framework de Calibración</span>
+              <h2 className="text-4xl md:text-6xl font-display font-extrabold mb-8 leading-tight tracking-tighter">
+                El sistema completo: <br />cómo funciona la fórmula de edge
+              </h2>
+              <p className="text-text-secondary text-lg md:text-xl leading-relaxed mb-12 font-sans">
+                Todo el sistema se basa en una idea simple pero que casi nadie ejecuta con rigor: el precio de un mercado de predicción es solo una <span className="text-text-primary font-bold">opinión colectiva</span>, y las opiniones colectivas cometen errores sistemáticos y predecibles. Cuando detectas uno de esos errores antes de que el mercado lo corrija, tienes <span className="text-brand-brasa font-bold italic">edge</span>.
               </p>
 
-              <div className="bg-bg-card border border-brand-indigo/30 rounded-3xl p-8 md:p-12 shadow-2xl relative overflow-hidden group">
+              <div className="bg-bg-card border border-border-subtle rounded-3xl p-8 md:p-12 shadow-2xl relative overflow-hidden group">
                 <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
-                  <TrendingUp size={160} />
+                  <Isotype className="w-64 h-64" />
                 </div>
                 <div className="relative z-10">
-                  <h3 className="text-brand-indigo font-mono text-xs uppercase tracking-widest mb-6 flex items-center gap-2">
-                    <Zap size={14} fill="currentColor" /> La fórmula central
+                  <h3 className="text-brand-brasa font-mono text-xs uppercase tracking-widest mb-6 flex items-center gap-2">
+                    <Zap size={14} fill="currentColor" className="fill-brand-brasa" /> La fórmula central
                   </h3>
                   <div className="text-3xl md:text-5xl font-bold text-text-primary mb-8 font-mono tracking-tighter">
                     Edge = P_real − P_mercado
                   </div>
-                  <div className="space-y-6 text-text-secondary leading-relaxed">
-                    <p>Donde <span className="text-text-primary font-mono text-sm bg-white/5 px-2 py-0.5 rounded">P_mercado</span> es el precio actual en Polymarket (por ejemplo, 58%) y <span className="text-text-primary font-mono text-sm bg-white/5 px-2 py-0.5 rounded">P_real</span> es tu estimación de la probabilidad verdadera del evento (por ejemplo, 70%).</p>
-                    <div className="p-6 bg-white/5 rounded-2xl border border-white/10">
-                      <p className="text-sm italic mb-2">En este caso:</p>
-                      <p className="text-xl font-bold text-brand-emerald">Edge = 70% − 58% = +12 puntos</p>
+                  <div className="space-y-6 text-text-secondary leading-relaxed font-sans">
+                    <p>Donde <span className="text-text-primary font-mono text-sm bg-brand-tinta/5 px-2 py-0.5 rounded">P_mercado</span> es el precio actual en Polymarket y <span className="text-text-primary font-mono text-sm bg-brand-tinta/5 px-2 py-0.5 rounded">P_real</span> es tu estimación de la probabilidad verdadera del evento.</p>
+                    <div className="p-6 bg-brand-tinta/5 rounded-2xl border border-border-subtle">
+                      <p className="text-sm italic mb-2">Ejemplo práctico:</p>
+                      <p className="text-xl md:text-2xl font-bold text-text-primary font-mono">
+                        70% <span className="text-brand-brasa">−</span> 58% <span className="text-brand-brasa">=</span> <span className="text-brand-brasa">+12 pts Edge</span>
+                      </p>
                     </div>
-                    <p>Un edge <span className="text-brand-emerald font-bold">positivo</span> significa que el mercado está infravalorando el evento. Un edge <span className="text-brand-indigo font-bold">negativo</span> significa que el mercado lo está sobrevalorando.</p>
-                    <p className="text-sm bg-brand-indigo/10 text-brand-indigo p-4 rounded-xl font-medium border-l-4 border-brand-indigo">
-                      La decisión de actuar solo se toma si el edge supera los <span className="font-bold underline">8 puntos</span> en valor absoluto. Por debajo de eso, la incertidumbre puede tragarse la diferencia.
-                    </p>
                   </div>
                 </div>
               </div>
@@ -3380,11 +3342,11 @@ export default function App() {
         </section>
 
         {/* Section 7: Newsletter */}
-        <section className="py-16 md:py-24 px-6 bg-bg-card">
+        <section className="py-24 md:py-32 px-6 bg-bg-card border-t border-border-subtle">
           <div className="max-w-4xl mx-auto text-center animate-on-scroll">
-            <h2 className="text-3xl font-semibold mb-4">Recibe el análisis semanal gratuito</h2>
-            <p className="text-text-secondary mb-10 text-lg">
-              Cada lunes, un análisis completo de un mercado activo. Descubre el edge antes que nadie. Sin spam.
+            <h2 className="text-4xl md:text-5xl font-display font-extrabold mb-6 tracking-tighter">Calibración Semanal</h2>
+            <p className="text-text-secondary mb-12 text-lg md:text-xl max-w-2xl mx-auto font-sans">
+              Cada lunes, un análisis completo de un mercado activo. Descubre el edge antes que nadie. Sin costo. Sin spam.
             </p>
             
             <form onSubmit={handleNewsletterSubmit} className="max-w-md mx-auto relative">
@@ -3408,24 +3370,24 @@ export default function App() {
                     onChange={(e) => setEmail(e.target.value)}
                     maxLength={100}
                     required
-                    className={`w-full bg-bg-base border ${emailStatus === 'invalid' ? 'border-red-500' : 'border-border-subtle'} rounded-xl px-5 py-3.5 outline-none focus:border-brand-indigo transition-all placeholder:text-text-tertiary text-text-primary`}
+                    className={`w-full bg-bg-base border ${emailStatus === 'invalid' ? 'border-brand-brasa' : 'border-border-subtle'} rounded-xl px-6 py-4 outline-none focus:border-brand-brasa transition-all placeholder:text-text-tertiary text-text-primary font-sans`}
                   />
                 </div>
                 <button 
                   type="submit"
                   disabled={emailStatus === 'submitting'}
-                  className="px-8 py-3.5 rounded-xl font-bold transition-all shrink-0 bg-brand-indigo hover:brightness-110 text-white shadow-lg shadow-brand-indigo/20 disabled:opacity-50 disabled:cursor-wait"
+                  className="px-10 py-4 rounded-xl font-bold transition-all shrink-0 bg-brand-tinta hover:bg-brand-brasa text-brand-hueso shadow-xl disabled:opacity-50"
                 >
                   {emailStatus === 'submitting' ? <Loader2 className="animate-spin" /> : 'Suscribirse'}
                 </button>
               </div>
               {emailStatus === 'success' && (
-                <p className="mt-4 text-green-500 text-sm font-medium">¡Suscripción completada con éxito!</p>
+                <p className="mt-4 text-brand-brasa text-sm font-bold">¡Te has unido a la calibración!</p>
               )}
             </form>
             
-            <p className="mt-8 text-text-tertiary text-xs">
-              Únete a <span className="text-text-secondary font-bold">+340 lectores</span> · Baja cuando quieras · Sin spam
+            <p className="mt-8 text-text-tertiary text-xs font-mono">
+              Únete a <span className="text-text-secondary font-bold">+340 superforecasters</span> · Baja cuando quieras
             </p>
           </div>
         </section>
@@ -3536,26 +3498,17 @@ export default function App() {
 </main>
 
       {view !== 'dashboard' && (
-        <footer className="bg-bg-card pt-16 pb-12 md:pt-24 md:pb-12 px-6 border-t border-border-subtle">
+        <footer className="bg-brand-tinta text-brand-hueso pt-24 pb-12 px-6 border-t border-border-subtle theme-dark">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-12 mb-10 md:mb-20 text-sm">
             <div className="col-span-2 md:col-span-1">
-              <div className="flex items-center gap-2 mb-6">
-                <motion.img 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.8 }}
-                  whileHover={{ scale: 1.05, filter: "brightness(1.1)" }}
-                  src={logoUrl || (theme === 'dark' ? "/logo-dark.svg" : "/logo-light.svg")} 
-                  alt="Edgio" 
-                  className="h-8 md:h-10 w-auto object-contain cursor-pointer"
-                  referrerPolicy="no-referrer"
-                />
+              <div className="flex items-center gap-2 mb-8">
+                <Logo className="h-9" colorMode="dark" />
               </div>
-              <p className="text-text-secondary leading-relaxed mb-8 max-w-xs">
-                En un mundo de opiniones, nosotros ofrecemos probabilidades reales.
+              <p className="text-brand-niebla leading-relaxed mb-8 max-w-xs font-sans">
+                Edgio es la escuela que enseña a leer el error del mercado en Polymarket y a convertirlo en probabilidad calibrada. Precio no es probabilidad.
               </p>
-              <span className="text-text-tertiary block">© 2024 {logoText}</span>
+              <span className="text-brand-niebla/50 block font-mono text-[10px] uppercase tracking-widest">© 2024 Edgio Platform</span>
             </div>
 
             <div>
@@ -3651,14 +3604,14 @@ export default function App() {
                 <motion.div 
                   initial={{ scale: 0.5, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
-                  className="w-16 h-16 bg-brand-indigo/10 rounded-2xl flex items-center justify-center mx-auto mb-4"
+                  className="w-16 h-16 bg-brand-brasa/10 rounded-2xl flex items-center justify-center mx-auto mb-4"
                 >
-                  <Lock size={32} className="text-brand-indigo" />
+                  <Logo className="h-8" showText={false} />
                 </motion.div>
-                <h2 className="text-2xl font-bold text-text-primary">
+                <h2 className="text-2xl font-display font-extrabold text-text-primary">
                   {authMode === 'login' ? 'Bienvenido de nuevo' : 'Crea tu cuenta'}
                 </h2>
-                <p className="text-text-secondary text-sm mt-2">
+                <p className="text-text-secondary text-sm mt-2 font-sans">
                   {authMode === 'login' ? 'Entra para ver tus análisis guardados.' : 'Únete a la élite de los mercados de predicción.'}
                 </p>
               </div>
